@@ -1,0 +1,116 @@
+{% extends 'base.html' %}
+
+{% block header_title %}Patient Registration{% endblock %}
+{% block header_subtitle %}Register new or returning patients{% endblock %}
+
+{% block content %}
+<div class="grid grid-cols-1 xl:grid-cols-2 gap-8">
+    
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+        <h2 class="font-bold text-gray-800 text-lg mb-6">Register New Patient</h2>
+        <form class="space-y-4">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 mb-1">Patient Name *</label>
+                    <input type="text" placeholder="Enter full name" class="w-full border rounded-lg p-2.5 outline-none focus:ring-2 focus:ring-blue-500 text-sm">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 mb-1">Identity Card (IC) *</label>
+                    <input type="text" id="icInput" placeholder="YYMMDD-PB-###G" class="w-full border rounded-lg p-2.5 outline-none focus:ring-2 focus:ring-blue-500 text-sm">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 mb-1">Age</label>
+                    <input type="text" id="ageOutput" placeholder="Auto-calculated" readonly class="w-full bg-gray-50 border rounded-lg p-2.5 outline-none text-sm text-gray-500">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 mb-1">Consultation Room *</label>
+                    <select class="w-full border rounded-lg p-2.5 outline-none focus:ring-2 focus:ring-blue-500 text-sm bg-white">
+                        <option value="">Select Room</option>
+                        <option value="auto" class="font-bold text-blue-600">✨ Auto Assign Room</option>
+                        <option value="1">Room 1</option>
+                        <option value="2">Room 2</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 mb-1">Symptoms *</label>
+                    <textarea rows="3" placeholder="Describe patient symptoms..." class="w-full border rounded-lg p-2.5 outline-none focus:ring-2 focus:ring-blue-500 text-sm resize-none"></textarea>
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 mb-1">Vital Signs (Optional)</label>
+                    <div class="grid grid-cols-2 gap-2">
+                        <input type="text" placeholder="BP: 120/80" class="border rounded-lg p-2 text-sm outline-none focus:ring-2 focus:ring-blue-500">
+                        <input type="text" placeholder="HR: 72 bpm" class="border rounded-lg p-2 text-sm outline-none focus:ring-2 focus:ring-blue-500">
+                        <input type="text" placeholder="Temp: 37.0°C" class="border rounded-lg p-2 text-sm outline-none focus:ring-2 focus:ring-blue-500">
+                        <input type="text" placeholder="O2: 98%" class="border rounded-lg p-2 text-sm outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex items-center justify-between pt-4 border-t mt-4">
+                <label class="flex items-center cursor-pointer">
+                    <span class="mr-3 text-sm font-medium text-gray-700">Priority Patient</span>
+                    <div class="relative">
+                        <input type="checkbox" class="sr-only">
+                        <div class="block bg-gray-300 w-10 h-6 rounded-full transition bg-blue-600"></div>
+                        <div class="dot absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition transform translate-x-4"></div>
+                    </div>
+                </label>
+                <div class="space-x-3">
+                    <button type="button" class="px-5 py-2.5 border rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-50">Clear</button>
+                    <button type="submit" class="px-5 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700">Register Patient</button>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6 flex flex-col">
+        <h2 class="font-bold text-gray-800 text-lg mb-6">Register Existing Patient</h2>
+        <p class="text-sm text-gray-500 mb-4">Search for a past patient to quickly re-register them for a new session.</p>
+        
+        <div class="flex space-x-2 mb-6">
+            <input type="text" placeholder="Search by IC number..." class="flex-1 border rounded-lg p-2.5 outline-none focus:ring-2 focus:ring-blue-500 text-sm">
+            <button class="bg-gray-800 text-white px-4 py-2.5 rounded-lg text-sm font-medium hover:bg-gray-900"><i class="fas fa-search mr-2"></i>Search</button>
+        </div>
+
+        <div class="border rounded-lg p-4 bg-gray-50">
+            <div class="flex justify-between items-start mb-4">
+                <div>
+                    <h4 class="font-bold text-gray-800">Tan Mei Ling</h4>
+                    <p class="text-xs text-gray-500">IC: 950315-08-1234 • Age: 29</p>
+                </div>
+                <button class="text-blue-600 text-sm font-medium hover:underline"><i class="fas fa-edit mr-1"></i>Edit Info</button>
+            </div>
+            <div class="space-y-3">
+                <input type="text" placeholder="New Symptoms for this visit..." class="w-full border rounded-lg p-2 text-sm outline-none focus:ring-2 focus:ring-blue-500">
+                <select class="w-full border rounded-lg p-2 text-sm outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+                    <option>Select Consultation Room</option>
+                    <option value="auto">✨ Auto Assign Room</option>
+                    <option>Room 1</option>
+                </select>
+                <button class="w-full bg-blue-600 text-white py-2 rounded-lg text-sm font-medium hover:bg-blue-700">Re-register Patient</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Age Calculator Script
+    document.getElementById('icInput').addEventListener('input', function(e) {
+        let ic = e.target.value.replace(/[^0-9]/g, '');
+        if(ic.length >= 6) {
+            let year = parseInt(ic.substring(0,2));
+            // Assuming 00-24 is 2000s, 25-99 is 1900s
+            let fullYear = year > new Date().getFullYear().toString().slice(-2) ? 1900 + year : 2000 + year;
+            let currentYear = new Date().getFullYear();
+            document.getElementById('ageOutput').value = currentYear - fullYear + " years old";
+        } else {
+            document.getElementById('ageOutput').value = "";
+        }
+    });
+</script>
+{% endblock %}

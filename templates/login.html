@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Login - E.M.M.A.S</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="h-screen flex text-gray-800">
+
+    <div class="hidden md:flex md:w-1/2 bg-blue-600 bg-cover bg-center relative" style="background-image: url('https://images.unsplash.com/photo-1576091160550-2173ff9e5ee4?ixlib=rb-4.0.3&auto=format&fit=crop&w=1920&q=80');">
+        <div class="absolute inset-0 bg-blue-700 bg-opacity-80 mix-blend-multiply"></div>
+        <div class="relative z-10 p-12 flex flex-col justify-center text-white">
+            <h1 class="text-6xl font-extrabold leading-tight mb-4">Revolutionizing<br>Healthcare<br>Documentation</h1>
+            <p class="text-xl opacity-90">Powered by E.M.M.A.S</p>
+        </div>
+    </div>
+
+    <div class="w-full md:w-1/2 flex items-center justify-center bg-gray-50 p-8">
+        <div class="w-full max-w-md bg-white p-8 rounded-2xl shadow-sm border border-gray-100">
+            <div class="text-center mb-8">
+                <h2 class="text-2xl font-bold text-gray-900">E.M.M.A.S</h2>
+                <p class="text-sm text-gray-500 mt-2">Enhanced Malaysian Medical AI Scribe</p>
+                <p class="text-sm text-gray-500 mb-6">Please login to your account</p>
+            </div>
+
+            <form action="/login" method="POST" class="space-y-5">
+                <div class="flex space-x-2 mb-6 p-1 bg-gray-100 rounded-lg">
+                    <button type="button" id="btnNurse" class="w-1/2 py-2 rounded-md bg-blue-600 text-white font-medium transition" onclick="selectRole('nurse')">I am a Nurse</button>
+                    <button type="button" id="btnDoctor" class="w-1/2 py-2 rounded-md bg-transparent text-gray-600 font-medium transition" onclick="selectRole('doctor')">I am a Doctor</button>
+                </div>
+                <input type="hidden" name="role" id="roleInput" value="nurse">
+
+                <div>
+                    <label class="block text-sm text-gray-600 mb-1">Email</label>
+                    <input type="email" class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" placeholder="name@hospital.com" required>
+                </div>
+                <div>
+                    <label class="block text-sm text-gray-600 mb-1">Password</label>
+                    <input type="password" class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" placeholder="••••••••" required>
+                </div>
+                <div>
+                    <label class="block text-sm text-gray-600 mb-1">Department</label>
+                    <select class="w-full px-4 py-2 border rounded-lg bg-white focus:ring-2 focus:ring-blue-500 outline-none">
+                        <option>Select Department</option>
+                        <option>General Medicine</option>
+                    </select>
+                </div>
+
+                <div id="roomSelection" class="hidden">
+                    <label class="block text-sm text-gray-600 mb-1">Consultation Room</label>
+                    <select class="w-full px-4 py-2 border rounded-lg bg-white focus:ring-2 focus:ring-blue-500 outline-none">
+                        <option>Select Consultation Room</option>
+                        <option>Room 1</option>
+                    </select>
+                    <p class="text-xs text-gray-400 mt-1">Marks room as occupied</p>
+                </div>
+
+                <button type="submit" class="w-full bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition">Login</button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        function selectRole(role) {
+            document.getElementById('roleInput').value = role;
+            const btnNurse = document.getElementById('btnNurse');
+            const btnDoctor = document.getElementById('btnDoctor');
+            const roomSection = document.getElementById('roomSelection');
+
+            if (role === 'doctor') {
+                btnDoctor.className = "w-1/2 py-2 rounded-md bg-blue-600 text-white font-medium transition";
+                btnNurse.className = "w-1/2 py-2 rounded-md bg-transparent text-gray-600 font-medium transition";
+                roomSection.classList.remove('hidden');
+            } else {
+                btnNurse.className = "w-1/2 py-2 rounded-md bg-blue-600 text-white font-medium transition";
+                btnDoctor.className = "w-1/2 py-2 rounded-md bg-transparent text-gray-600 font-medium transition";
+                roomSection.classList.add('hidden');
+            }
+        }
+    </script>
+</body>
+</html>

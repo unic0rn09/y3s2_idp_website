@@ -1,0 +1,93 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden mb-8">
+    <div class="p-5 border-b flex justify-between items-center bg-gray-50/50">
+        <h2 class="font-bold text-gray-800 text-lg">Available Consultation Rooms</h2>
+        <span class="text-blue-600 bg-blue-50 px-3 py-1 rounded-full text-sm font-medium"><i class="fas fa-door-open mr-2"></i>5 Active</span>
+    </div>
+    <div class="overflow-x-auto">
+        <table class="w-full text-left">
+            <thead class="text-sm text-gray-500 bg-white border-b">
+                <tr>
+                    <th class="py-4 px-6 font-medium">Room</th>
+                    <th class="py-4 px-6 font-medium">Doctor</th>
+                    <th class="py-4 px-6 font-medium">Patients</th>
+                    <th class="py-4 px-6 font-medium">Status</th>
+                    <th class="py-4 px-6 font-medium text-right">Action</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-100 text-gray-700">
+                {% for room in rooms %}
+                <tr class="hover:bg-gray-50 transition">
+                    <td class="py-4 px-6 font-semibold">{{ room.id }}</td>
+                    <td class="py-4 px-6">{{ room.doctor }}</td>
+                    <td class="py-4 px-6">
+                        <span class="flex items-center space-x-2 text-blue-600 bg-blue-50 px-2 py-1 rounded-md w-max">
+                            <i class="fas fa-user text-xs"></i><span>{{ room.patients|length }}</span>
+                        </span>
+                    </td>
+                    <td class="py-4 px-6">
+                        {% if room.status == 'Consulting' %}
+                            <span class="text-blue-600 flex items-center"><i class="fas fa-clock text-xs mr-2"></i>Consulting</span>
+                        {% elif room.status == 'Available' %}
+                            <span class="text-green-600 flex items-center"><i class="fas fa-check-circle text-xs mr-2"></i>Available</span>
+                        {% else %}
+                            <span class="text-gray-400 flex items-center"><i class="fas fa-minus-circle text-xs mr-2"></i>Not Available</span>
+                        {% endif %}
+                    </td>
+                    <td class="py-4 px-6 text-right">
+                        <button onclick="openModal('{{ room.id }}', '{{ room.doctor }}', '{{ room.patients|length }}')" class="text-blue-600 hover:text-blue-800 font-medium text-sm flex items-center justify-end space-x-1 w-full">
+                            <i class="far fa-eye"></i><span>View</span>
+                        </button>
+                    </td>
+                </tr>
+                {% endendfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+    <h2 class="font-bold text-gray-800 text-lg mb-6">Quick Register Patient</h2>
+    {% include 'patient_registration.html' ignore missing %}
+    <p class="text-sm text-gray-500">For full registration features including returning patients, please use the <a href="/nurse/registration" class="text-blue-600 underline">Patient Registration</a> tab.</p>
+</div>
+
+<div id="roomModal" class="fixed inset-0 bg-gray-900 bg-opacity-50 hidden flex items-center justify-center z-50">
+    <div class="bg-white rounded-xl shadow-lg w-full max-w-md overflow-hidden">
+        <div class="bg-blue-600 p-4 flex justify-between items-center text-white">
+            <h3 class="font-bold text-lg" id="modalRoomTitle">Room Status</h3>
+            <button onclick="closeModal()" class="hover:text-gray-200"><i class="fas fa-times text-xl"></i></button>
+        </div>
+        <div class="p-6 space-y-4">
+            <div>
+                <p class="text-xs text-gray-500 uppercase font-bold tracking-wider mb-1">Doctor Present</p>
+                <p class="font-semibold text-gray-800 text-lg" id="modalDoctor">-</p>
+            </div>
+            <div class="bg-blue-50 p-4 rounded-lg border border-blue-100">
+                <p class="text-xs text-blue-500 uppercase font-bold tracking-wider mb-1">Currently Consulting</p>
+                <p class="font-semibold text-gray-800">Tan Mei Ling <span class="text-sm font-normal text-gray-500 ml-2">950315-08-1234</span></p>
+            </div>
+            <div>
+                <p class="text-xs text-gray-500 uppercase font-bold tracking-wider mb-2">Waiting List</p>
+                <p class="text-sm text-gray-600 bg-gray-50 p-3 rounded border" id="modalQueue">Queue: 0 patients</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    function openModal(room, doctor, queue) {
+        document.getElementById('modalRoomTitle').innerText = room;
+        document.getElementById('modalDoctor').innerText = doctor;
+        document.getElementById('modalQueue').innerText = queue + " patients waiting";
+        document.getElementById('roomModal').classList.remove('hidden');
+    }
+    function closeModal() {
+        document.getElementById('roomModal').classList.add('hidden');
+    }
+</script>
+{% endblock %}
