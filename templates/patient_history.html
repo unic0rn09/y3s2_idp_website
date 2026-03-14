@@ -1,13 +1,13 @@
 {% extends 'base.html' %}
 {% block header_title %}Consultation History{% endblock %}
-{% block header_subtitle %}View completed consultations and re-register patients{% endblock %}
+{% block header_subtitle %}View, Edit, or Delete patient records{% endblock %}
 
 {% block content %}
 <div class="bg-white border rounded-xl shadow-sm overflow-hidden relative">
     <div class="p-4 border-b flex justify-end bg-gray-50">
         <div class="relative w-72">
             <i class="fas fa-search absolute left-3 top-2.5 text-gray-400"></i>
-            <input type="text" placeholder="Search by name, IC, or doctor..." class="w-full pl-9 pr-4 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+            <input type="text" id="histSearch" placeholder="Search by name or IC..." class="w-full pl-9 pr-4 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
         </div>
     </div>
 
@@ -16,71 +16,121 @@
             <tr>
                 <th class="py-4 px-6 font-semibold">Patient Info</th>
                 <th class="py-4 px-6 font-semibold">Symptoms</th>
-                <th class="py-4 px-6 font-semibold">Consulted By</th>
-                <th class="py-4 px-6 font-semibold">Date & Time</th>
+                <th class="py-4 px-6 font-semibold">Status / Room</th>
+                <th class="py-4 px-6 font-semibold">Date Added</th>
                 <th class="py-4 px-6 font-semibold text-right">Actions</th>
             </tr>
         </thead>
-        <tbody class="divide-y divide-gray-100">
-            {% for record in history %}
-            <tr class="hover:bg-gray-50 transition">
+        <tbody class="divide-y divide-gray-100" id="histTableBody">
+            {% for p in history %}
+            <tr class="hover:bg-gray-50 transition hist-row">
                 <td class="py-4 px-6">
-                    <div class="font-bold text-gray-800">{{ record.name }}</div>
-                    <div class="text-xs text-gray-500">IC: {{ record.ic }}</div>
+                    <div class="font-bold text-gray-800 hist-name">{{ p.name }}</div>
+                    <div class="text-xs text-gray-500 hist-ic">IC: {{ p.ic }}</div>
                 </td>
-                <td class="py-4 px-6 text-gray-600">{{ record.symptoms }}</td>
+                <td class="py-4 px-6 text-gray-600 truncate max-w-xs">{{ p.symptoms }}</td>
                 <td class="py-4 px-6">
-                    <div class="text-gray-800">{{ record.doctor }}</div>
-                    <span class="text-[10px] bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full">{{ record.room }}</span>
+                    <div class="text-xs font-semibold mb-1 {% if p.status == 'Waiting' %}text-yellow-600{% else %}text-green-600{% endif %}">{{ p.status }}</div>
+                    <span class="text-[10px] bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full">Room {{ p.room }}</span>
                 </td>
                 <td class="py-4 px-6 text-gray-600">
-                    <div>{{ record.date.split(' ')[0] }}</div>
-                    <div class="text-xs text-gray-400">{{ record.date.split(' ')[1] }} {{ record.date.split(' ')[2] }} • {{ record.duration }}</div>
+                    <div>{{ p.date_added.strftime('%Y-%m-%d') }}</div>
+                    <div class="text-xs text-gray-400">{{ p.date_added.strftime('%H:%M') }}</div>
                 </td>
                 <td class="py-4 px-6 text-right">
-                    <button onclick="openReRegisterModal('{{ record.name }}')" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-1.5 rounded-md text-sm font-medium transition shadow-sm">
-                        Re-Register
-                    </button>
+                    <div class="flex justify-end space-x-2">
+                        <button onclick="openEditModal('{{ p.id }}', '{{ p.name }}', '{{ p.ic }}', '{{ p.age }}', '{{ p.symptoms }}')" class="text-gray-500 hover:text-blue-600 bg-gray-100 hover:bg-blue-50 w-8 h-8 rounded flex items-center justify-center transition" title="Edit Info">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        <button onclick="confirmDelete('{{ p.id }}', '{{ p.name }}')" class="text-gray-500 hover:text-red-600 bg-gray-100 hover:bg-red-50 w-8 h-8 rounded flex items-center justify-center transition" title="Delete Patient">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
                 </td>
             </tr>
             {% endfor %}
+            {% if not history %}
+            <tr>
+                <td colspan="5" class="text-center py-6 text-gray-500">No patient records found.</td>
+            </tr>
+            {% endif %}
         </tbody>
     </table>
 </div>
 
-<div id="reRegModal" class="fixed inset-0 bg-gray-900 bg-opacity-50 hidden flex items-center justify-center z-50">
+<div id="editModal" class="fixed inset-0 bg-gray-900 bg-opacity-50 hidden flex items-center justify-center z-50">
     <div class="bg-white rounded-xl shadow-lg w-full max-w-md p-6">
-        <h3 class="font-bold text-xl text-gray-800 mb-2">Re-Register Patient</h3>
-        <p class="text-sm text-gray-600 mb-6">Re-registering <span id="regPatientName" class="font-bold text-gray-900"></span> for another consultation.</p>
-        
-        <div class="space-y-4">
+        <h3 class="font-bold text-xl text-gray-800 mb-2">Edit Patient Details</h3>
+        <form id="editForm" method="POST" class="space-y-4">
             <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Select Consultation Room</label>
-                <select class="w-full border rounded-lg p-2.5 outline-none focus:ring-2 focus:ring-blue-500 text-sm">
-                    <option>Choose a room</option>
-                    <option value="auto">✨ Auto Assign Room</option>
-                    <option>Room 1</option>
-                    <option>Room 2</option>
-                </select>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Patient Name</label>
+                <input type="text" name="name" id="editName" required class="w-full border rounded-lg p-2.5 outline-none focus:ring-2 focus:ring-blue-500 text-sm">
             </div>
-            
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">IC Number</label>
+                    <input type="text" name="ic" id="editIc" required class="w-full border rounded-lg p-2.5 outline-none focus:ring-2 focus:ring-blue-500 text-sm">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Age</label>
+                    <input type="text" name="age" id="editAge" class="w-full border rounded-lg p-2.5 outline-none focus:ring-2 focus:ring-blue-500 text-sm">
+                </div>
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Symptoms</label>
+                <textarea name="symptoms" id="editSymptoms" required rows="3" class="w-full border rounded-lg p-2.5 outline-none focus:ring-2 focus:ring-blue-500 text-sm resize-none"></textarea>
+            </div>
             <div class="flex space-x-3 pt-4">
-                <button onclick="closeReRegisterModal()" class="w-1/2 py-2.5 border rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-50">Cancel</button>
-                <button class="w-1/2 py-2.5 bg-gray-200 text-white rounded-lg text-sm font-medium hover:bg-blue-600 hover:text-white transition cursor-pointer">Confirm</button>
+                <button type="button" onclick="closeEditModal()" class="w-1/2 py-2.5 border rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-50">Cancel</button>
+                <button type="submit" class="w-1/2 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition">Save Changes</button>
             </div>
+        </form>
+    </div>
+</div>
+
+<div id="deleteModal" class="fixed inset-0 bg-gray-900 bg-opacity-50 hidden flex items-center justify-center z-[60]">
+    <div class="bg-white rounded-xl shadow-lg w-full max-w-sm overflow-hidden p-6 text-center">
+        <div class="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <i class="fas fa-exclamation-triangle text-2xl text-red-600"></i>
         </div>
+        <h3 class="font-bold text-lg text-gray-800 mb-2">Delete Patient</h3>
+        <p class="text-sm text-gray-500 mb-6">Are you sure you want to permanently delete <span id="delPatientName" class="font-bold text-gray-900"></span>? This action cannot be undone.</p>
+        
+        <form id="deleteForm" method="POST" class="flex space-x-3">
+            <button type="button" onclick="closeDeleteModal()" class="w-1/2 py-2.5 border rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-50">Cancel</button>
+            <button type="submit" class="w-1/2 py-2.5 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700 transition">Yes, Delete</button>
+        </form>
     </div>
 </div>
 {% endblock %}
 
 {% block scripts %}
 <script>
-    function openReRegisterModal(patientName) {
-        document.getElementById('regPatientName').innerText = patientName;
-        document.getElementById('reRegModal').classList.remove('hidden');
+    function openEditModal(id, name, ic, age, symptoms) {
+        document.getElementById('editForm').action = '/edit_patient/' + id;
+        document.getElementById('editName').value = name;
+        document.getElementById('editIc').value = ic;
+        document.getElementById('editAge').value = age;
+        document.getElementById('editSymptoms').value = symptoms;
+        document.getElementById('editModal').classList.remove('hidden');
     }
-    function closeReRegisterModal() {
-        document.getElementById('reRegModal').classList.add('hidden');
+    function closeEditModal() { document.getElementById('editModal').classList.add('hidden'); }
+
+    function confirmDelete(id, name) {
+        document.getElementById('deleteForm').action = '/delete_patient/' + id;
+        document.getElementById('delPatientName').innerText = name;
+        document.getElementById('deleteModal').classList.remove('hidden');
     }
+    function closeDeleteModal() { document.getElementById('deleteModal').classList.add('hidden'); }
+
+    // Simple search filter
+    document.getElementById('histSearch').addEventListener('keyup', function(e) {
+        let val = e.target.value.toLowerCase();
+        document.querySelectorAll('.hist-row').forEach(row => {
+            let name = row.querySelector('.hist-name').innerText.toLowerCase();
+            let ic = row.querySelector('.hist-ic').innerText.toLowerCase();
+            row.style.display = (name.includes(val) || ic.includes(val)) ? 'table-row' : 'none';
+        });
+    });
 </script>
 {% endblock %}

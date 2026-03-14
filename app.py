@@ -22,16 +22,19 @@ class User(db.Model):
     status = db.Column(db.String(20), default='offline')
     room = db.Column(db.String(20), nullable=True)
 
-# Dummy data for UI rendering (until we hook up patient tables)
+# Dummy data
 rooms_data = [
     {"id": "Room 1", "doctor": "Dr. Ahmad bin Hassan", "status": "Consulting", "patients": [{"name": "Tan Mei Ling", "ic": "950315-08-1234", "symptoms": "Fever, headache"}], "duration": "45 mins"},
     {"id": "Room 2", "doctor": "Dr. Sarah Lee", "status": "Available", "patients": [], "duration": "0 mins"},
-    {"id": "Room 3", "doctor": "Dr. Raj Kumar", "status": "Available", "patients": [], "duration": "0 mins"},
-    {"id": "Room 4", "doctor": "-", "status": "Not Available", "patients": [], "duration": "-"},
 ]
 
 history_data = [
     {"name": "Tan Mei Ling", "ic": "950315-08-1234", "symptoms": "Fever, headache", "doctor": "Dr. Ahmad bin Hassan", "room": "Room 1", "date": "2024-01-15 09:15 AM", "duration": "15 mins"}
+]
+
+queue_data = [
+    {"name": "Tan Mei Ling", "ic": "950315-08-1234", "symptoms": "Fever, headache", "status": "In Progress"},
+    {"name": "Kumar Raj", "ic": "880722-14-5678", "symptoms": "Cough, sore throat", "status": "Waiting"}
 ]
 
 @app.route('/')
@@ -40,28 +43,24 @@ def login():
 
 @app.route('/login', methods=['POST'])
 def do_login():
-    # Grab the data submitted from the form
     email = request.form.get('email')
     password = request.form.get('password')
     role_selected = request.form.get('role')
 
-    # Query the database for the user
     user = User.query.filter_by(email=email).first()
 
-    # Check if user exists and password matches
     if user and check_password_hash(user.password_hash, password):
         if user.role == role_selected:
             if user.role == 'nurse':
                 return redirect(url_for('nurse_dashboard'))
             elif user.role == 'doctor':
-                # Route to doctor dashboard later; redirecting to login for now
-                return redirect(url_for('login'))
+                return redirect(url_for('doctor_dashboard')) # Fixed redirect
         else:
-            # Prevent a doctor from logging in through the nurse portal and vice versa
             return "Role mismatch error", 403
     else:
         return "Invalid email or password", 401
 
+# --- NURSE ROUTES ---
 @app.route('/nurse/dashboard')
 def nurse_dashboard():
     return render_template('nurse_dashboard.html', rooms=rooms_data)
@@ -78,6 +77,27 @@ def all_rooms():
 def patient_history():
     return render_template('patient_history.html', history=history_data, rooms=rooms_data)
 
+# --- DOCTOR ROUTES ---
+@app.route('/doctor/dashboard')
+def doctor_dashboard():
+    return render_template('doctor_dashboard.html', queue=queue_data)
+
+@app.route('/doctor/live_session')
+def live_consultation_session():
+    return render_template('live_consultation_session.html')
+
+@app.route('/doctor/summary')
+def consultation_summary():
+    return render_template('consultation_summary.html')
+
+@app.route('/doctor/note')
+def final_medical_note():
+    return render_template('final_medical_note.html')
+
+@app.route('/doctor/history')
+def doctor_consultation_history():
+    return render_template('consultation_history.html', history=history_data)
+
 if __name__ == '__main__':
     with app.app_context():
         db.create_all()
@@ -85,16 +105,5 @@ if __name__ == '__main__':
             db.session.add(User(name="Nurse Joy", email='nurse@test.com', password_hash=generate_password_hash('nurse123'), role='nurse'))
         if not User.query.filter_by(email='doctor@test.com').first():
             db.session.add(User(name="Lim", email='doctor@test.com', password_hash=generate_password_hash('doctor123'), role='doctor', status='online'))
-        
-        sim_docs = [
-            {'n':'Jackson', 'e':'jackson@hospital.com', 'p':'jackson123', 'r':'3'},
-            {'n':'Taylor', 'e':'taylor@hospital.com', 'p':'taylor123', 'r':'5'},
-            {'n':'Aida', 'e':'aida@hospital.com', 'p':'aida123', 'r':'8'},
-            {'n':'Aiman', 'e':'aiman@hospital.com', 'p':'aiman123', 'r':'9'},
-            {'n':'Jayden', 'e':'jayden@hospital.com', 'p':'jayden123', 'r':'10'}
-        ]
-        for d in sim_docs:
-            if not User.query.filter_by(email=d['e']).first():
-                db.session.add(User(name=d['n'], email=d['e'], password_hash=generate_password_hash(d['p']), role='doctor', status='online', room=d['r']))
         db.session.commit()
     app.run(host='0.0.0.0', port=5000, debug=False)

@@ -1,0 +1,108 @@
+{% extends 'doctor_base.html' %}
+
+{% block back_button %}
+<button onclick="confirmExit()" class="mr-4 text-gray-400 hover:text-red-500 transition"><i class="fas fa-arrow-left"></i></button>
+{% endblock %}
+{% block header_title %}Live Consultation Session{% endblock %}
+{% block header_subtitle %}Recording and transcribing...{% endblock %}
+
+{% block content %}
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <div class="lg:col-span-1 bg-white border border-gray-200 rounded-xl shadow-sm p-6">
+        <h3 class="text-gray-500 text-xs font-bold uppercase tracking-wider mb-4 border-b pb-2">Patient Details</h3>
+        <h2 class="text-2xl font-bold text-gray-800 mb-1">{{ patient.name }}</h2>
+        <p class="text-sm text-gray-600 mb-4">IC: {{ patient.ic }} • Age: {{ patient.age }}</p>
+        
+        <div class="bg-red-50 border border-red-100 p-4 rounded-xl mb-4">
+            <span class="text-xs font-bold text-red-600 uppercase">Symptoms</span>
+            <p class="text-gray-800 font-medium mt-1">{{ patient.symptoms }}</p>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3 mb-6">
+            <div class="border rounded-lg p-3 text-center bg-gray-50"><p class="text-[10px] text-gray-500 font-bold uppercase mb-1">Temp</p><p class="font-bold text-gray-800">{{ patient.temp }}</p></div>
+            <div class="border rounded-lg p-3 text-center bg-gray-50"><p class="text-[10px] text-gray-500 font-bold uppercase mb-1">HR</p><p class="font-bold text-gray-800">{{ patient.hr }}</p></div>
+            <div class="border rounded-lg p-3 text-center bg-gray-50"><p class="text-[10px] text-gray-500 font-bold uppercase mb-1">RR</p><p class="font-bold text-gray-800">{{ patient.rr }}</p></div>
+            <div class="border rounded-lg p-3 text-center bg-gray-50"><p class="text-[10px] text-gray-500 font-bold uppercase mb-1">BP</p><p class="font-bold text-gray-800">{{ patient.bp }}</p></div>
+        </div>
+    </div>
+
+    <div class="lg:col-span-2 flex flex-col space-y-4">
+        <div class="bg-gray-900 rounded-xl shadow-lg p-6 flex flex-col items-center justify-center text-white relative overflow-hidden h-40">
+            <div class="flex items-center space-x-2 mb-4 relative z-10" id="audioWaves">
+                <div class="w-1.5 h-6 bg-blue-400 rounded-full animate-pulse"></div>
+                <div class="w-1.5 h-10 bg-blue-500 rounded-full animate-pulse delay-75"></div>
+                <div class="w-1.5 h-12 bg-blue-300 rounded-full animate-pulse delay-150"></div>
+                <div class="w-1.5 h-8 bg-blue-500 rounded-full animate-pulse delay-200"></div>
+                <div class="w-1.5 h-10 bg-blue-400 rounded-full animate-pulse delay-75"></div>
+            </div>
+            
+            <div class="flex space-x-4 relative z-10">
+                <button id="btnStart" onclick="startSession()" class="bg-blue-600 hover:bg-blue-500 px-6 py-2 rounded-full font-bold text-sm shadow-lg transition"><i class="fas fa-microphone mr-2"></i>Start Session</button>
+                <button id="btnPause" onclick="pauseSession()" class="hidden bg-yellow-500 hover:bg-yellow-400 px-6 py-2 rounded-full font-bold text-sm shadow-lg transition text-gray-900"><i class="fas fa-pause mr-2"></i>Pause</button>
+                <button id="btnResume" onclick="resumeSession()" class="hidden bg-green-500 hover:bg-green-400 px-6 py-2 rounded-full font-bold text-sm shadow-lg transition text-gray-900"><i class="fas fa-play mr-2"></i>Resume</button>
+            </div>
+        </div>
+
+        <div class="bg-white border rounded-xl shadow-sm flex-1 flex flex-col">
+            <div class="p-4 border-b bg-gray-50 flex justify-between items-center">
+                <h3 class="font-bold text-gray-700"><i class="fas fa-closed-captioning text-blue-600 mr-2"></i>Live Transcription</h3>
+                <span class="flex items-center text-xs text-green-600 font-bold"><div class="w-2 h-2 rounded-full bg-green-500 mr-2 animate-pulse" id="recIndicator" style="display:none;"></div><span id="recText">Ready</span></span>
+            </div>
+            <textarea class="w-full flex-1 p-5 outline-none resize-none text-gray-700 font-medium leading-relaxed" placeholder="Transcription will appear here... Edit text as needed." rows="10"></textarea>
+            <div class="p-4 border-t bg-gray-50 text-right">
+                <button onclick="confirmFinish()" class="bg-green-600 hover:bg-green-700 text-white px-8 py-3 rounded-xl font-bold transition shadow-md"><i class="fas fa-check-circle mr-2"></i>Complete Consultation</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="exitModal" class="fixed inset-0 bg-gray-900 bg-opacity-75 hidden flex items-center justify-center z-[100]">
+    <div class="bg-white rounded-xl shadow-2xl w-full max-w-sm p-6 text-center">
+        <div class="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4"><i class="fas fa-exclamation-triangle text-2xl text-red-600"></i></div>
+        <h3 class="font-bold text-lg text-gray-800 mb-2">Exit Session?</h3>
+        <p class="text-sm text-gray-500 mb-6">Are you sure you want to exit? All recorded live transcription will not be saved.</p>
+        <div class="flex space-x-3">
+            <button onclick="document.getElementById('exitModal').classList.add('hidden')" class="w-1/2 py-2.5 border rounded-lg text-sm font-bold text-gray-600 hover:bg-gray-50">No, stay here</button>
+            <a href="/doctor/dashboard" class="w-1/2 py-2.5 bg-red-600 text-white rounded-lg text-sm font-bold hover:bg-red-700 block text-center">Yes, I want to quit</a>
+        </div>
+    </div>
+</div>
+
+<div id="finishModal" class="fixed inset-0 bg-gray-900 bg-opacity-75 hidden flex items-center justify-center z-[100]">
+    <div class="bg-white rounded-xl shadow-2xl w-full max-w-sm p-6 text-center">
+        <div class="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4"><i class="fas fa-check text-2xl text-green-600"></i></div>
+        <h3 class="font-bold text-lg text-gray-800 mb-2">Complete Consultation?</h3>
+        <p class="text-sm text-gray-500 mb-6">Generate structural notes from the transcription?</p>
+        <div class="flex space-x-3">
+            <button onclick="document.getElementById('finishModal').classList.add('hidden')" class="w-1/2 py-2.5 border rounded-lg text-sm font-bold text-gray-600 hover:bg-gray-50">Cancel</button>
+            <a href="/doctor/summary/{{ patient.id }}" class="w-1/2 py-2.5 bg-green-600 text-white rounded-lg text-sm font-bold hover:bg-green-700 block text-center">Confirm</a>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    function confirmExit() { document.getElementById('exitModal').classList.remove('hidden'); }
+    function confirmFinish() { document.getElementById('finishModal').classList.remove('hidden'); }
+    
+    function startSession() {
+        document.getElementById('btnStart').classList.add('hidden');
+        document.getElementById('btnPause').classList.remove('hidden');
+        document.getElementById('recIndicator').style.display = 'block';
+        document.getElementById('recText').innerText = 'Recording';
+    }
+    function pauseSession() {
+        document.getElementById('btnPause').classList.add('hidden');
+        document.getElementById('btnResume').classList.remove('hidden');
+        document.getElementById('recIndicator').style.display = 'none';
+        document.getElementById('recText').innerText = 'Paused';
+    }
+    function resumeSession() {
+        document.getElementById('btnResume').classList.add('hidden');
+        document.getElementById('btnPause').classList.remove('hidden');
+        document.getElementById('recIndicator').style.display = 'block';
+        document.getElementById('recText').innerText = 'Recording';
+    }
+</script>
+{% endblock %}

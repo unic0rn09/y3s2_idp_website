@@ -4,7 +4,7 @@
 <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden mb-8">
     <div class="p-5 border-b flex justify-between items-center bg-gray-50/50">
         <h2 class="font-bold text-gray-800 text-lg">Available Consultation Rooms</h2>
-        <span class="text-blue-600 bg-blue-50 px-3 py-1 rounded-full text-sm font-medium"><i class="fas fa-door-open mr-2"></i>5 Active</span>
+        <span class="text-blue-600 bg-blue-50 px-3 py-1 rounded-full text-sm font-medium"><i class="fas fa-door-open mr-2"></i>Active</span>
     </div>
     <div class="overflow-x-auto">
         <table class="w-full text-left">
@@ -29,7 +29,9 @@
                     </td>
                     <td class="py-4 px-6">
                         {% if room.status == 'Consulting' %}
-                            <span class="text-blue-600 flex items-center"><i class="fas fa-clock text-xs mr-2"></i>Consulting</span>
+                            <span class="text-blue-600 flex items-center"><i class="fas fa-user-md text-xs mr-2"></i>Consulting</span>
+                        {% elif room.status == 'Waiting' %}
+                            <span class="text-yellow-600 flex items-center"><i class="fas fa-clock text-xs mr-2"></i>Waiting</span>
                         {% elif room.status == 'Available' %}
                             <span class="text-green-600 flex items-center"><i class="fas fa-check-circle text-xs mr-2"></i>Available</span>
                         {% else %}
@@ -37,42 +39,184 @@
                         {% endif %}
                     </td>
                     <td class="py-4 px-6 text-right">
-                        <button onclick="openModal('{{ room.id }}', '{{ room.doctor }}', '{{ room.patients|length }}')" class="text-blue-600 hover:text-blue-800 font-medium text-sm flex items-center justify-end space-x-1 w-full">
+                        {% if room.active %}
+                        <button onclick="openModal('{{ room.room_num }}')" class="text-blue-600 hover:text-blue-800 font-medium text-sm flex items-center justify-end space-x-1 w-full">
                             <i class="far fa-eye"></i><span>View</span>
                         </button>
+                        {% else %}
+                        <span class="text-gray-400 text-sm">Offline</span>
+                        {% endif %}
                     </td>
                 </tr>
-                {% endendfor %}
+                {% endfor %}
             </tbody>
         </table>
     </div>
 </div>
 
 <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-    <h2 class="font-bold text-gray-800 text-lg mb-6">Quick Register Patient</h2>
-    {% include 'patient_registration.html' ignore missing %}
-    <p class="text-sm text-gray-500">For full registration features including returning patients, please use the <a href="/nurse/registration" class="text-blue-600 underline">Patient Registration</a> tab.</p>
+    <h2 class="font-bold text-gray-800 text-lg mb-6">Register New Patient</h2>
+    <form id="dashRegForm" action="/register_patient" method="POST" class="space-y-4">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+                <label class="block text-xs font-semibold text-gray-600 mb-1">Patient Name *</label>
+                <input type="text" name="name" id="dashNameInput" placeholder="Enter full name" required class="w-full border rounded-lg p-2.5 outline-none focus:ring-2 focus:ring-blue-500 text-sm">
+            </div>
+            <div>
+                <label class="block text-xs font-semibold text-gray-600 mb-1">Identity Card (IC) *</label>
+                <input type="text" name="ic" id="dashIcInput" placeholder="YYMMDD-PB-###G" required class="w-full border rounded-lg p-2.5 outline-none focus:ring-2 focus:ring-blue-500 text-sm">
+            </div>
+            <div>
+                <label class="block text-xs font-semibold text-gray-600 mb-1">Age</label>
+                <input type="text" name="age" id="dashAgeOutput" placeholder="Auto-calculated" readonly class="w-full bg-gray-50 border rounded-lg p-2.5 outline-none text-sm text-gray-500">
+            </div>
+            <div>
+                <label class="block text-xs font-semibold text-gray-600 mb-1">Consultation Room *</label>
+                <select name="room" required class="w-full border rounded-lg p-2.5 outline-none focus:ring-2 focus:ring-blue-500 text-sm bg-white">
+                    <option value="">Select Room</option>
+                    <option value="auto" class="font-bold text-blue-600">✨ Auto Assign Room</option>
+                    {% for r in rooms %}
+                        {% if r.active %}
+                            <option value="{{ r.room_num }}">{{ r.id }} ({{ r.doctor }})</option>
+                        {% endif %}
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+                <label class="block text-xs font-semibold text-gray-600 mb-1">Symptoms *</label>
+                <textarea name="symptoms" rows="3" required placeholder="Describe patient symptoms..." class="w-full border rounded-lg p-2.5 outline-none focus:ring-2 focus:ring-blue-500 text-sm resize-none"></textarea>
+            </div>
+            <div>
+                <label class="block text-xs font-semibold text-gray-600 mb-1">Vital Signs (Optional)</label>
+                <div class="grid grid-cols-2 gap-2">
+                    <input type="text" name="bp" placeholder="BP: 120/80" class="border rounded-lg p-2 text-sm outline-none focus:ring-2 focus:ring-blue-500">
+                    <input type="text" name="hr" placeholder="HR: 72 bpm" class="border rounded-lg p-2 text-sm outline-none focus:ring-2 focus:ring-blue-500">
+                    <input type="text" name="temp" placeholder="Temp: 37.0°C" class="border rounded-lg p-2 text-sm outline-none focus:ring-2 focus:ring-blue-500">
+                    <input type="text" name="rr" placeholder="Resp Rate: 20 bpm" class="border rounded-lg p-2 text-sm outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+            </div>
+        </div>
+
+        <div class="flex items-center justify-between pt-4 border-t mt-4">
+            <label class="flex items-center cursor-pointer" title="Places patient at the front of the queue">
+                <span class="mr-3 text-sm font-medium text-gray-700">Priority Patient</span>
+                <div class="relative">
+                    <input type="checkbox" name="priority" class="sr-only" onchange="document.getElementById('dashDot').classList.toggle('translate-x-4'); document.getElementById('dashBg').classList.toggle('bg-blue-600'); document.getElementById('dashBg').classList.toggle('bg-gray-300');">
+                    <div id="dashBg" class="block bg-gray-300 w-10 h-6 rounded-full transition"></div>
+                    <div id="dashDot" class="dot absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition transform"></div>
+                </div>
+            </label>
+            <div class="space-x-3">
+                <button type="reset" class="px-5 py-2.5 border rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-50">Clear</button>
+                <button type="button" onclick="confirmRegistration('dashRegForm', 'dashNameInput')" class="px-5 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700">Register Patient</button>
+            </div>
+        </div>
+    </form>
 </div>
 
-<div id="roomModal" class="fixed inset-0 bg-gray-900 bg-opacity-50 hidden flex items-center justify-center z-50">
-    <div class="bg-white rounded-xl shadow-lg w-full max-w-md overflow-hidden">
-        <div class="bg-blue-600 p-4 flex justify-between items-center text-white">
-            <h3 class="font-bold text-lg" id="modalRoomTitle">Room Status</h3>
-            <button onclick="closeModal()" class="hover:text-gray-200"><i class="fas fa-times text-xl"></i></button>
+{% for room in rooms %}
+{% if room.active %}
+<div id="roomModal-{{ room.room_num }}" class="fixed inset-0 bg-gray-900 bg-opacity-50 hidden flex items-center justify-center z-50">
+    <div class="bg-gray-50 rounded-xl shadow-lg w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+        <div class="bg-white p-4 flex justify-end border-b sticky top-0 z-10">
+            <button onclick="closeModal('{{ room.room_num }}')" class="text-gray-400 hover:text-gray-800"><i class="fas fa-times text-xl"></i></button>
         </div>
-        <div class="p-6 space-y-4">
-            <div>
-                <p class="text-xs text-gray-500 uppercase font-bold tracking-wider mb-1">Doctor Present</p>
-                <p class="font-semibold text-gray-800 text-lg" id="modalDoctor">-</p>
+        
+        <div class="p-6 space-y-6">
+            <div class="bg-white border rounded-xl p-5 shadow-sm">
+                <h3 class="font-bold text-gray-800 text-lg mb-3">Doctor Information</h3>
+                <div class="flex items-center text-green-600 font-semibold mb-1">
+                    <i class="fas fa-user-md mr-2"></i> {{ room.doctor }}
+                </div>
+                <div class="text-sm text-gray-500 mb-3">{{ room.doctor_email }}</div>
+                <span class="bg-green-100 text-green-700 text-xs px-3 py-1 rounded-full font-medium">Online</span>
             </div>
-            <div class="bg-blue-50 p-4 rounded-lg border border-blue-100">
-                <p class="text-xs text-blue-500 uppercase font-bold tracking-wider mb-1">Currently Consulting</p>
-                <p class="font-semibold text-gray-800">Tan Mei Ling <span class="text-sm font-normal text-gray-500 ml-2">950315-08-1234</span></p>
+
+            <div class="bg-white border rounded-xl overflow-hidden shadow-sm">
+                <div class="p-4 border-b flex justify-between items-center bg-gray-50/50">
+                    <h3 class="font-bold text-gray-800">Patients Added Today</h3>
+                    <span class="bg-blue-50 text-blue-600 text-xs px-3 py-1 rounded-full font-medium">{{ room.patients|length }} Total</span>
+                </div>
+                <table class="w-full text-left text-sm">
+                    <thead class="text-gray-500 bg-white border-b text-xs uppercase">
+                        <tr>
+                            <th class="py-3 px-4 font-semibold">Time</th>
+                            <th class="py-3 px-4 font-semibold">Patient Name</th>
+                            <th class="py-3 px-4 font-semibold">IC Number</th>
+                            <th class="py-3 px-4 font-semibold">Symptoms</th>
+                            <th class="py-3 px-4 font-semibold">Status</th>
+                            <th class="py-3 px-4 font-semibold text-right">Details</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-100">
+                        {% for p in room.patients %}
+                        <tr class="hover:bg-gray-50">
+                            <td class="py-3 px-4 text-gray-500">{{ p.time }}</td>
+                            <td class="py-3 px-4 font-medium text-gray-800">{{ p.name }} {% if p.priority %}<i class="fas fa-star text-yellow-400 text-xs ml-1" title="Priority"></i>{% endif %}</td>
+                            <td class="py-3 px-4 text-gray-500">{{ p.ic }}</td>
+                            <td class="py-3 px-4 text-gray-600 truncate max-w-[200px]">{{ p.symptoms }}</td>
+                            <td class="py-3 px-4">
+                                <span class="bg-green-100 text-green-700 text-xs px-2 py-1 rounded">{{ p.status }}</span>
+                            </td>
+                            <td class="py-3 px-4 text-right">
+                                <button onclick="toggleVitals('{{ room.room_num }}', '{{ p.name|replace('\'', '\\\'') }}', '{{ p.hr|default('-', true) }}', '{{ p.bp|default('-', true) }}', '{{ p.rr|default('-', true) }}', '{{ p.temp|default('-', true) }}')" class="bg-blue-50 text-blue-600 hover:bg-blue-600 hover:text-white transition px-3 py-1.5 rounded-md text-xs font-medium border border-blue-100">View Detail</button>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                        {% if not room.patients %}
+                        <tr><td colspan="6" class="py-4 text-center text-gray-500">No patients waiting in this room.</td></tr>
+                        {% endif %}
+                    </tbody>
+                </table>
             </div>
-            <div>
-                <p class="text-xs text-gray-500 uppercase font-bold tracking-wider mb-2">Waiting List</p>
-                <p class="text-sm text-gray-600 bg-gray-50 p-3 rounded border" id="modalQueue">Queue: 0 patients</p>
+
+            <div class="bg-white border rounded-xl p-5 shadow-sm hidden transition-all duration-300" id="vitals-section-{{ room.room_num }}">
+                <div class="flex justify-between items-center mb-1">
+                    <h3 class="font-bold text-gray-800 text-lg">Patient Details: <span id="vitals-name-{{ room.room_num }}" class="text-blue-600"></span></h3>
+                    <button onclick="document.getElementById('vitals-section-{{ room.room_num }}').classList.add('hidden')" class="text-gray-400 hover:text-red-500" title="Close Details"><i class="fas fa-times"></i></button>
+                </div>
+                <p class="text-xs text-gray-500 mb-4">Recorded by nurse upon registration</p>
+                
+                <h4 class="font-bold text-gray-800 mb-3">Patient Vital Signs</h4>
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div class="border rounded-xl p-4 text-center bg-gray-50">
+                        <div class="text-gray-500 text-xs font-semibold mb-1 flex justify-center items-center"><i class="fas fa-heartbeat text-red-500 mr-1"></i> Heart Rate</div>
+                        <div class="font-bold text-xl text-gray-800"><span id="vitals-hr-{{ room.room_num }}">-</span> <span class="text-sm font-normal text-gray-500">bpm</span></div>
+                    </div>
+                    <div class="border rounded-xl p-4 text-center bg-gray-50">
+                        <div class="text-gray-500 text-xs font-semibold mb-1 flex justify-center items-center"><i class="fas fa-tint text-blue-500 mr-1"></i> Blood Pressure</div>
+                        <div class="font-bold text-xl text-gray-800"><span id="vitals-bp-{{ room.room_num }}">-</span> <span class="text-sm font-normal text-gray-500">mmHg</span></div>
+                    </div>
+                    <div class="border rounded-xl p-4 text-center bg-gray-50">
+                        <div class="text-gray-500 text-xs font-semibold mb-1 flex justify-center items-center"><i class="fas fa-lungs text-blue-400 mr-1"></i> Respiratory Rate</div>
+                        <div class="font-bold text-xl text-gray-800"><span id="vitals-rr-{{ room.room_num }}">-</span> <span class="text-sm font-normal text-gray-500">bpm</span></div>
+                    </div>
+                    <div class="border rounded-xl p-4 text-center bg-gray-50">
+                        <div class="text-gray-500 text-xs font-semibold mb-1 flex justify-center items-center"><i class="fas fa-thermometer-half text-red-400 mr-1"></i> Temp.</div>
+                        <div class="font-bold text-xl text-gray-800"><span id="vitals-temp-{{ room.room_num }}">-</span></div>
+                    </div>
+                </div>
             </div>
+
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endfor %}
+
+<div id="confirmModal" class="fixed inset-0 bg-gray-900 bg-opacity-50 hidden flex items-center justify-center z-[60]">
+    <div class="bg-white rounded-xl shadow-lg w-full max-w-sm overflow-hidden p-6 text-center">
+        <div class="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <i class="fas fa-question text-2xl text-blue-600"></i>
+        </div>
+        <h3 class="font-bold text-lg text-gray-800 mb-2">Confirm Registration</h3>
+        <p class="text-sm text-gray-500 mb-6">Are you sure you want to register <span id="confirmPatientName" class="font-bold text-gray-900"></span> as a new patient?</p>
+        <div class="flex space-x-3">
+            <button type="button" onclick="closeConfirm()" class="w-1/2 py-2.5 border rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-50">Cancel</button>
+            <button type="button" onclick="submitForm()" class="w-1/2 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700">Yes, Confirm</button>
         </div>
     </div>
 </div>
@@ -80,14 +224,62 @@
 
 {% block scripts %}
 <script>
-    function openModal(room, doctor, queue) {
-        document.getElementById('modalRoomTitle').innerText = room;
-        document.getElementById('modalDoctor').innerText = doctor;
-        document.getElementById('modalQueue').innerText = queue + " patients waiting";
-        document.getElementById('roomModal').classList.remove('hidden');
+    // Handles opening the room view modal and ensures vitals are hidden initially
+    function openModal(roomId) { 
+        const vitalsSection = document.getElementById('vitals-section-' + roomId);
+        if (vitalsSection) { vitalsSection.classList.add('hidden'); }
+        document.getElementById('roomModal-' + roomId).classList.remove('hidden'); 
     }
-    function closeModal() {
-        document.getElementById('roomModal').classList.add('hidden');
+    
+    function closeModal(roomId) { 
+        document.getElementById('roomModal-' + roomId).classList.add('hidden'); 
     }
+
+    // TOGGLE VITALS LOGIC
+    function toggleVitals(roomNum, name, hr, bp, rr, temp) {
+        const vitalsSection = document.getElementById('vitals-section-' + roomNum);
+        const nameElement = document.getElementById('vitals-name-' + roomNum);
+
+        // If the window is currently open AND the exact same patient's View button was clicked again, close it.
+        if (!vitalsSection.classList.contains('hidden') && nameElement.innerText === name) {
+            vitalsSection.classList.add('hidden');
+            return;
+        }
+        
+        // Otherwise, update the information and open it
+        nameElement.innerText = name;
+        
+        // Populate fields (check if empty, None, or undefined and fall back to '-')
+        document.getElementById('vitals-hr-' + roomNum).innerText = (hr && hr !== 'None' && hr !== '') ? hr : '-';
+        document.getElementById('vitals-bp-' + roomNum).innerText = (bp && bp !== 'None' && bp !== '') ? bp : '-';
+        document.getElementById('vitals-rr-' + roomNum).innerText = (rr && rr !== 'None' && rr !== '') ? rr : '-';
+        document.getElementById('vitals-temp-' + roomNum).innerText = (temp && temp !== 'None' && temp !== '') ? temp : '-';
+        
+        vitalsSection.classList.remove('hidden');
+        
+        // Smooth scroll to vitals so nurse knows it opened
+        vitalsSection.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+
+    let activeForm = null;
+    function confirmRegistration(formId, inputId) {
+        const nameVal = document.getElementById(inputId).value;
+        if (!nameVal) { alert("Please enter a patient name first."); return; }
+        activeForm = formId;
+        document.getElementById('confirmPatientName').innerText = nameVal;
+        document.getElementById('confirmModal').classList.remove('hidden');
+    }
+    
+    function closeConfirm() { document.getElementById('confirmModal').classList.add('hidden'); }
+    function submitForm() { if (activeForm) document.getElementById(activeForm).submit(); }
+
+    document.getElementById('dashIcInput').addEventListener('input', function(e) {
+        let ic = e.target.value.replace(/[^0-9]/g, '');
+        if(ic.length >= 6) {
+            let year = parseInt(ic.substring(0,2));
+            let fullYear = year > new Date().getFullYear().toString().slice(-2) ? 1900 + year : 2000 + year;
+            document.getElementById('dashAgeOutput').value = new Date().getFullYear() - fullYear + " years old";
+        }
+    });
 </script>
 {% endblock %}

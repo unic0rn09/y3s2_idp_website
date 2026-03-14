@@ -7,7 +7,7 @@
     <div class="p-4 border-b flex justify-end bg-gray-50">
         <div class="relative">
             <i class="fas fa-search absolute left-3 top-2.5 text-gray-400"></i>
-            <input type="text" placeholder="Search patient by name..." class="pl-9 pr-4 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 w-64">
+            <input type="text" id="roomSearch" placeholder="Search patient by name..." class="pl-9 pr-4 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 w-64">
         </div>
     </div>
     
@@ -20,51 +20,79 @@
             <div class="text-right">Action</div>
         </div>
 
+        {% for room in rooms %}
         <div class="border-b">
             <div class="grid grid-cols-6 items-center p-4 hover:bg-gray-50 transition">
-                <div class="font-bold text-gray-800">Room 1</div>
-                <div class="col-span-2 text-gray-600">Dr. Ahmad bin Hassan</div>
-                <div><span class="text-blue-600 bg-blue-50 px-3 py-1 rounded-full text-xs font-medium">Consulting</span></div>
-                <div><span class="text-gray-600 bg-gray-100 px-2 py-1 rounded text-xs"><i class="fas fa-user mr-1"></i>3</span></div>
+                <div class="font-bold text-gray-800">{{ room.id }}</div>
+                <div class="col-span-2 text-gray-600">{{ room.doctor }}</div>
+                <div>
+                    {% if room.status == 'Consulting' %}
+                        <span class="text-blue-600 bg-blue-50 px-3 py-1 rounded-full text-xs font-medium">Consulting</span>
+                    {% elif room.status == 'Waiting' %}
+                        <span class="text-yellow-600 bg-yellow-50 px-3 py-1 rounded-full text-xs font-medium">Waiting</span>
+                    {% elif room.status == 'Available' %}
+                        <span class="text-green-600 bg-green-50 px-3 py-1 rounded-full text-xs font-medium">Available</span>
+                    {% else %}
+                        <span class="text-gray-500 bg-gray-100 px-3 py-1 rounded-full text-xs font-medium">Not Available</span>
+                    {% endif %}
+                </div>
+                <div><span class="text-gray-600 bg-gray-100 px-2 py-1 rounded text-xs"><i class="fas fa-user mr-1"></i>{{ room.patients|length }}</span></div>
                 <div class="text-right">
-                    <button class="text-blue-600 hover:text-blue-800 text-sm font-medium">^ Hide</button>
+                    <button onclick="toggleRoom('{{ room.room_num }}')" class="text-blue-600 hover:text-blue-800 text-sm font-medium">
+                        <span id="btnText-{{ room.room_num }}">v View</span>
+                    </button>
                 </div>
             </div>
             
-            <div class="bg-gray-50 p-4 border-t border-gray-100">
-                <div class="bg-red-50 border border-red-100 rounded-lg p-3 flex justify-between items-center mb-2">
-                    <div class="flex items-center space-x-4">
-                        <div class="bg-blue-600 text-white w-6 h-6 rounded-full flex justify-center items-center text-xs font-bold">1</div>
-                        <div class="font-semibold text-gray-800 text-sm">Tan Mei Ling <span class="bg-red-500 text-white text-[10px] px-2 py-0.5 rounded ml-2 uppercase">Priority</span></div>
-                        <div class="text-xs text-gray-500 w-32">IC: 950315-08-1234</div>
-                        <div class="text-xs text-gray-500 w-32">Fever, headache</div>
+            <div id="patients-{{ room.room_num }}" class="hidden bg-gray-50 p-4 border-t border-gray-100 transition-all">
+                <h4 class="text-sm font-bold text-gray-700 mb-3 border-b border-gray-200 pb-2"><i class="fas fa-list-ul mr-2 text-blue-600"></i>List of Patients</h4>
+                
+                {% if room.patients %}
+                    {% for p in room.patients %}
+                    <div class="patient-card {% if p.priority %}bg-red-50 border-red-100{% else %}bg-white border-gray-200{% endif %} border rounded-lg p-4 flex justify-between items-center mb-2 shadow-sm">
+                        <div class="flex items-center space-x-6 w-full">
+                            <div class="bg-blue-600 text-white w-7 h-7 rounded-full flex justify-center items-center text-sm font-bold">{{ loop.index }}</div>
+                            <div class="font-bold text-gray-800 text-base p-name w-48">{{ p.name }} 
+                                {% if p.priority %}<span class="bg-red-500 text-white text-[10px] px-2 py-0.5 rounded ml-2 uppercase align-middle">Priority</span>{% endif %}
+                            </div>
+                            <div class="text-sm text-gray-600 w-40">IC: {{ p.ic }}</div>
+                            <div class="text-sm text-gray-700 flex-1 truncate"><span class="font-semibold text-gray-800">Symptoms:</span> {{ p.symptoms }}</div>
+                            <div class="text-sm font-medium text-yellow-600 bg-yellow-50 px-4 py-1.5 rounded-full"><i class="fas fa-clock mr-1 text-xs"></i>Waiting</div>
+                        </div>
                     </div>
-                    <button class="text-gray-400 hover:text-blue-600"><i class="fas fa-exchange-alt"></i> Move</button>
-                </div>
-
-                <div class="bg-white border border-gray-200 rounded-lg p-3 flex justify-between items-center">
-                    <div class="flex items-center space-x-4">
-                        <div class="bg-blue-600 text-white w-6 h-6 rounded-full flex justify-center items-center text-xs font-bold">2</div>
-                        <div class="font-semibold text-gray-800 text-sm">Kumar Raj</div>
-                        <div class="text-xs text-gray-500 w-32">IC: 880722-14-5678</div>
-                        <div class="text-xs text-gray-500 w-32">Cough, sore throat</div>
-                    </div>
-                    <button class="text-gray-400 hover:text-blue-600"><i class="fas fa-exchange-alt"></i> Move</button>
-                </div>
+                    {% endfor %}
+                {% else %}
+                    <p class="text-sm text-gray-500 py-2">No patients waiting in this room.</p>
+                {% endif %}
             </div>
         </div>
+        {% endfor %}
 
-        <div class="border-b">
-            <div class="grid grid-cols-6 items-center p-4 hover:bg-gray-50 transition">
-                <div class="font-bold text-gray-800">Room 2</div>
-                <div class="col-span-2 text-gray-600">Dr. Sarah Lee</div>
-                <div><span class="text-green-600 bg-green-50 px-3 py-1 rounded-full text-xs font-medium">Available</span></div>
-                <div><span class="text-gray-600 bg-gray-100 px-2 py-1 rounded text-xs"><i class="fas fa-user mr-1"></i>0</span></div>
-                <div class="text-right">
-                    <button class="text-blue-600 hover:text-blue-800 text-sm font-medium">v View</button>
-                </div>
-            </div>
-        </div>
     </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    function toggleRoom(roomId) {
+        const div = document.getElementById('patients-' + roomId);
+        const btn = document.getElementById('btnText-' + roomId);
+        if (div.classList.contains('hidden')) {
+            div.classList.remove('hidden');
+            btn.innerHTML = '^ Hide';
+        } else {
+            div.classList.add('hidden');
+            btn.innerHTML = 'v View';
+        }
+    }
+
+    // Filter patients
+    document.getElementById('roomSearch').addEventListener('keyup', function(e) {
+        let search = e.target.value.toLowerCase();
+        document.querySelectorAll('.patient-card').forEach(card => {
+            let name = card.querySelector('.p-name').innerText.toLowerCase();
+            card.style.display = name.includes(search) ? 'flex' : 'none';
+        });
+    });
+</script>
 {% endblock %}

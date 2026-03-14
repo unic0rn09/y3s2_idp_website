@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>E.M.M.A.S Doctor Portal</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body class="bg-gray-50 flex h-screen overflow-hidden text-sm md:text-base">
+
+    <aside class="w-64 bg-white border-r border-gray-200 flex flex-col justify-between hidden md:flex">
+        <div>
+            <div class="p-6 flex items-center space-x-3">
+                <div class="bg-blue-600 text-white p-2 rounded-lg font-bold">EM</div>
+                <div class="font-bold text-lg text-gray-800">E.M.M.A.S<br><span class="text-xs text-gray-400 font-normal">Doctor Portal</span></div>
+            </div>
+            <nav class="mt-4 space-y-1 px-4">
+                <a href="/doctor/dashboard" class="flex items-center space-x-3 px-4 py-3 rounded-lg {% if request.path == '/doctor/dashboard' %}bg-blue-50 text-blue-600 font-semibold{% else %}text-gray-600 hover:bg-gray-50{% endif %}">
+                    <i class="fas fa-th-large w-5"></i><span>Dashboard</span>
+                </a>
+                <a href="/doctor/history" class="flex items-center space-x-3 px-4 py-3 rounded-lg {% if request.path == '/doctor/history' %}bg-blue-50 text-blue-600 font-semibold{% else %}text-gray-600 hover:bg-gray-50{% endif %}">
+                    <i class="fas fa-history w-5"></i><span>Consultation History</span>
+                </a>
+            </nav>
+        </div>
+        
+        <div class="p-4 border-t border-gray-100">
+            <form action="/doctor/toggle_status" method="POST" class="mb-4 bg-gray-50 p-3 rounded-lg flex items-center justify-between border">
+                <span class="text-sm font-semibold text-gray-700">Status</span>
+                <button type="submit" class="flex items-center space-x-2 {% if doctor.status == 'online' %}bg-green-100 text-green-700 border-green-200{% else %}bg-red-100 text-red-700 border-red-200{% endif %} px-3 py-1.5 rounded-full border text-xs font-bold transition">
+                    <div class="w-2 h-2 rounded-full {% if doctor.status == 'online' %}bg-green-500{% else %}bg-red-500{% endif %}"></div>
+                    <span>{% if doctor.status == 'online' %}Available{% else %}Not Available{% endif %}</span>
+                </button>
+            </form>
+            <a href="/logout" class="flex items-center space-x-3 px-4 py-2 text-red-600 hover:bg-red-50 rounded-lg font-medium transition">
+                <i class="fas fa-sign-out-alt w-5"></i><span>Logout</span>
+            </a>
+        </div>
+    </aside>
+
+    <main class="flex-1 flex flex-col overflow-y-auto relative">
+        <header class="bg-white border-b p-6 flex justify-between items-center sticky top-0 z-10">
+            <div>
+                <h1 class="text-2xl font-bold text-gray-800 flex items-center">
+                    {% block back_button %}{% endblock %}
+                    {% block header_title %}Dashboard{% endblock %}
+                </h1>
+                <p class="text-gray-500 text-sm">{% block header_subtitle %}Welcome back, {{ doctor.name }}{% endblock %}</p>
+            </div>
+            <div class="flex items-center space-x-3">
+                <div class="text-right hidden sm:block">
+                    <p class="font-bold text-gray-800">Room {{ doctor.room }}</p>
+                    <p class="text-xs text-gray-500">{{ doctor.name }}</p>
+                </div>
+                <div class="bg-blue-600 text-white w-10 h-10 rounded-full flex items-center justify-center font-bold"><i class="fas fa-user-md"></i></div>
+            </div>
+        </header>
+        
+        <div class="p-6">{% block content %}{% endblock %}</div>
+    </main>
+
+    {% block scripts %}{% endblock %}
+</body>
+</html>

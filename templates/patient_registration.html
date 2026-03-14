@@ -8,27 +8,30 @@
     
     <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
         <h2 class="font-bold text-gray-800 text-lg mb-6">Register New Patient</h2>
-        <form class="space-y-4">
+        <form id="regForm" action="/register_patient" method="POST" class="space-y-4">
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 mb-1">Patient Name *</label>
-                    <input type="text" placeholder="Enter full name" class="w-full border rounded-lg p-2.5 outline-none focus:ring-2 focus:ring-blue-500 text-sm">
+                    <input type="text" name="name" id="nameInput" required placeholder="Enter full name" class="w-full border rounded-lg p-2.5 outline-none focus:ring-2 focus:ring-blue-500 text-sm">
                 </div>
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 mb-1">Identity Card (IC) *</label>
-                    <input type="text" id="icInput" placeholder="YYMMDD-PB-###G" class="w-full border rounded-lg p-2.5 outline-none focus:ring-2 focus:ring-blue-500 text-sm">
+                    <input type="text" name="ic" id="icInput" required placeholder="YYMMDD-PB-###G" class="w-full border rounded-lg p-2.5 outline-none focus:ring-2 focus:ring-blue-500 text-sm">
                 </div>
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 mb-1">Age</label>
-                    <input type="text" id="ageOutput" placeholder="Auto-calculated" readonly class="w-full bg-gray-50 border rounded-lg p-2.5 outline-none text-sm text-gray-500">
+                    <input type="text" name="age" id="ageOutput" placeholder="Auto-calculated" readonly class="w-full bg-gray-50 border rounded-lg p-2.5 outline-none text-sm text-gray-500">
                 </div>
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 mb-1">Consultation Room *</label>
-                    <select class="w-full border rounded-lg p-2.5 outline-none focus:ring-2 focus:ring-blue-500 text-sm bg-white">
+                    <select name="room" required class="w-full border rounded-lg p-2.5 outline-none focus:ring-2 focus:ring-blue-500 text-sm bg-white">
                         <option value="">Select Room</option>
                         <option value="auto" class="font-bold text-blue-600">✨ Auto Assign Room</option>
-                        <option value="1">Room 1</option>
-                        <option value="2">Room 2</option>
+                        {% for r in rooms %}
+                            {% if r.active %}
+                                <option value="{{ r.room_num }}">{{ r.id }} ({{ r.doctor }})</option>
+                            {% endif %}
+                        {% endfor %}
                     </select>
                 </div>
             </div>
@@ -36,7 +39,7 @@
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 mb-1">Symptoms *</label>
-                    <textarea rows="3" placeholder="Describe patient symptoms..." class="w-full border rounded-lg p-2.5 outline-none focus:ring-2 focus:ring-blue-500 text-sm resize-none"></textarea>
+                    <textarea name="symptoms" required rows="3" placeholder="Describe patient symptoms..." class="w-full border rounded-lg p-2.5 outline-none focus:ring-2 focus:ring-blue-500 text-sm resize-none"></textarea>
                 </div>
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 mb-1">Vital Signs (Optional)</label>
@@ -53,45 +56,71 @@
                 <label class="flex items-center cursor-pointer">
                     <span class="mr-3 text-sm font-medium text-gray-700">Priority Patient</span>
                     <div class="relative">
-                        <input type="checkbox" class="sr-only">
-                        <div class="block bg-gray-300 w-10 h-6 rounded-full transition bg-blue-600"></div>
-                        <div class="dot absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition transform translate-x-4"></div>
+                        <input type="checkbox" name="priority" class="sr-only" onchange="document.getElementById('regDot').classList.toggle('translate-x-4'); document.getElementById('regBg').classList.toggle('bg-blue-600'); document.getElementById('regBg').classList.toggle('bg-gray-300');">
+                        <div id="regBg" class="block bg-gray-300 w-10 h-6 rounded-full transition"></div>
+                        <div id="regDot" class="dot absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition transform"></div>
                     </div>
                 </label>
                 <div class="space-x-3">
-                    <button type="button" class="px-5 py-2.5 border rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-50">Clear</button>
-                    <button type="submit" class="px-5 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700">Register Patient</button>
+                    <button type="reset" class="px-5 py-2.5 border rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-50">Clear</button>
+                    <button type="button" onclick="confirmRegistration('regForm', 'nameInput')" class="px-5 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700">Register Patient</button>
                 </div>
             </div>
         </form>
     </div>
 
-    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6 flex flex-col">
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6 flex flex-col h-full">
         <h2 class="font-bold text-gray-800 text-lg mb-6">Register Existing Patient</h2>
-        <p class="text-sm text-gray-500 mb-4">Search for a past patient to quickly re-register them for a new session.</p>
+        <p class="text-sm text-gray-500 mb-4">Search for a past patient to quickly re-register them.</p>
         
         <div class="flex space-x-2 mb-6">
-            <input type="text" placeholder="Search by IC number..." class="flex-1 border rounded-lg p-2.5 outline-none focus:ring-2 focus:ring-blue-500 text-sm">
-            <button class="bg-gray-800 text-white px-4 py-2.5 rounded-lg text-sm font-medium hover:bg-gray-900"><i class="fas fa-search mr-2"></i>Search</button>
+            <input type="text" id="searchExisting" placeholder="Search by IC number or Name..." class="flex-1 border rounded-lg p-2.5 outline-none focus:ring-2 focus:ring-blue-500 text-sm">
         </div>
 
-        <div class="border rounded-lg p-4 bg-gray-50">
-            <div class="flex justify-between items-start mb-4">
-                <div>
-                    <h4 class="font-bold text-gray-800">Tan Mei Ling</h4>
-                    <p class="text-xs text-gray-500">IC: 950315-08-1234 • Age: 29</p>
+        <div class="overflow-y-auto pr-2 space-y-4 max-h-[400px]" id="existingPatientsList">
+            {% for p in history %}
+            <div class="border rounded-lg p-4 bg-gray-50 existing-card">
+                <div class="flex justify-between items-start mb-4">
+                    <div>
+                        <h4 class="font-bold text-gray-800 patient-name">{{ p.name }}</h4>
+                        <p class="text-xs text-gray-500 patient-ic">IC: {{ p.ic }} • Age: {{ p.age }}</p>
+                    </div>
                 </div>
-                <button class="text-blue-600 text-sm font-medium hover:underline"><i class="fas fa-edit mr-1"></i>Edit Info</button>
+                <form action="/register_patient" method="POST" class="space-y-3">
+                    <input type="hidden" name="name" value="{{ p.name }}">
+                    <input type="hidden" name="ic" value="{{ p.ic }}">
+                    <input type="hidden" name="age" value="{{ p.age }}">
+                    <input type="text" name="symptoms" required placeholder="New Symptoms for this visit..." class="w-full border rounded-lg p-2 text-sm outline-none focus:ring-2 focus:ring-blue-500">
+                    <select name="room" required class="w-full border rounded-lg p-2 text-sm outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+                        <option value="">Select Room</option>
+                        <option value="auto">✨ Auto Assign Room</option>
+                        {% for r in rooms %}
+                            {% if r.active %}
+                                <option value="{{ r.room_num }}">{{ r.id }} ({{ r.doctor }})</option>
+                            {% endif %}
+                        {% endfor %}
+                    </select>
+                    <button type="submit" class="w-full bg-blue-600 text-white py-2 rounded-lg text-sm font-medium hover:bg-blue-700">Re-register Patient</button>
+                </form>
             </div>
-            <div class="space-y-3">
-                <input type="text" placeholder="New Symptoms for this visit..." class="w-full border rounded-lg p-2 text-sm outline-none focus:ring-2 focus:ring-blue-500">
-                <select class="w-full border rounded-lg p-2 text-sm outline-none focus:ring-2 focus:ring-blue-500 bg-white">
-                    <option>Select Consultation Room</option>
-                    <option value="auto">✨ Auto Assign Room</option>
-                    <option>Room 1</option>
-                </select>
-                <button class="w-full bg-blue-600 text-white py-2 rounded-lg text-sm font-medium hover:bg-blue-700">Re-register Patient</button>
-            </div>
+            {% endfor %}
+            {% if not history %}
+                <p class="text-sm text-gray-500 text-center py-4">No completed patients found in history.</p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<div id="confirmModal" class="fixed inset-0 bg-gray-900 bg-opacity-50 hidden flex items-center justify-center z-50">
+    <div class="bg-white rounded-xl shadow-lg w-full max-w-sm overflow-hidden p-6 text-center">
+        <div class="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <i class="fas fa-question text-2xl text-blue-600"></i>
+        </div>
+        <h3 class="font-bold text-lg text-gray-800 mb-2">Confirm Registration</h3>
+        <p class="text-sm text-gray-500 mb-6">Are you sure you want to register <span id="confirmPatientName" class="font-bold text-gray-900"></span> as a new patient?</p>
+        <div class="flex space-x-3">
+            <button onclick="closeConfirm()" class="w-1/2 py-2.5 border rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-50">Cancel</button>
+            <button onclick="submitForm()" class="w-1/2 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700">Yes, Confirm</button>
         </div>
     </div>
 </div>
@@ -99,18 +128,39 @@
 
 {% block scripts %}
 <script>
-    // Age Calculator Script
+    let activeForm = null;
+    function confirmRegistration(formId, inputId) {
+        const nameVal = document.getElementById(inputId).value;
+        if (!nameVal) { alert("Please enter a patient name first."); return; }
+        activeForm = formId;
+        document.getElementById('confirmPatientName').innerText = nameVal;
+        document.getElementById('confirmModal').classList.remove('hidden');
+    }
+    function closeConfirm() { document.getElementById('confirmModal').classList.add('hidden'); }
+    function submitForm() { if (activeForm) document.getElementById(activeForm).submit(); }
+
     document.getElementById('icInput').addEventListener('input', function(e) {
         let ic = e.target.value.replace(/[^0-9]/g, '');
         if(ic.length >= 6) {
             let year = parseInt(ic.substring(0,2));
-            // Assuming 00-24 is 2000s, 25-99 is 1900s
             let fullYear = year > new Date().getFullYear().toString().slice(-2) ? 1900 + year : 2000 + year;
-            let currentYear = new Date().getFullYear();
-            document.getElementById('ageOutput').value = currentYear - fullYear + " years old";
-        } else {
-            document.getElementById('ageOutput').value = "";
+            document.getElementById('ageOutput').value = new Date().getFullYear() - fullYear + " years old";
         }
+    });
+
+    // Simple search filter for Existing Patients
+    document.getElementById('searchExisting').addEventListener('keyup', function(e) {
+        let searchStr = e.target.value.toLowerCase();
+        let cards = document.querySelectorAll('.existing-card');
+        cards.forEach(card => {
+            let name = card.querySelector('.patient-name').innerText.toLowerCase();
+            let ic = card.querySelector('.patient-ic').innerText.toLowerCase();
+            if (name.includes(searchStr) || ic.includes(searchStr)) {
+                card.style.display = 'block';
+            } else {
+                card.style.display = 'none';
+            }
+        });
     });
 </script>
 {% endblock %}

@@ -7,13 +7,34 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
-        /* Custom scrollbar for a cleaner look */
         ::-webkit-scrollbar { width: 6px; }
         ::-webkit-scrollbar-track { background: #f1f1f1; }
         ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+        @keyframes slideDown {
+            from { opacity: 0; transform: translate(-50%, -20px); }
+            to { opacity: 1; transform: translate(-50%, 0); }
+        }
+        .animate-toast { animation: slideDown 0.4s ease-out forwards; }
     </style>
 </head>
 <body class="bg-gray-50 flex h-screen overflow-hidden text-sm md:text-base">
+
+    <div id="toast-container" class="fixed top-6 left-1/2 transform -translate-x-1/2 z-[100] flex flex-col items-center space-y-3 pointer-events-none">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="animate-toast pointer-events-auto flex items-center shadow-lg rounded-xl px-6 py-3 min-w-[350px]
+                        {% if category == 'error' %}bg-red-600 text-white{% else %}bg-green-600 text-white{% endif %}">
+                        <i class="fas {% if category == 'error' %}fa-exclamation-triangle{% else %}fa-check-circle{% endif %} text-lg mr-3"></i>
+                        <span class="font-medium flex-1">{{ message }}</span>
+                        <button onclick="this.parentElement.remove()" class="ml-4 hover:opacity-75 focus:outline-none">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+    </div>
 
     <aside class="w-64 bg-white border-r border-gray-200 flex flex-col justify-between hidden md:flex">
         <div>
@@ -63,6 +84,16 @@
         </div>
     </main>
 
+    <script>
+        // Auto-hide toasts after 5 seconds
+        setTimeout(() => {
+            document.querySelectorAll('.animate-toast').forEach(toast => {
+                toast.style.opacity = '0';
+                toast.style.transition = 'opacity 0.5s ease';
+                setTimeout(() => toast.remove(), 500);
+            });
+        }, 5000);
+    </script>
     {% block scripts %}{% endblock %}
 </body>
 </html>

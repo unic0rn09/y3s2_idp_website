@@ -1,0 +1,79 @@
+{% extends 'doctor_base.html' %}
+
+{% block back_button %}
+<a href="/doctor/summary/{{ patient.id }}" class="mr-4 text-gray-400 hover:text-blue-500 transition" title="Back to edit"><i class="fas fa-arrow-left"></i></a>
+{% endblock %}
+{% block header_title %}Final Medical Report{% endblock %}
+{% block header_subtitle %}Official consultation record{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto bg-white border border-gray-200 rounded-xl shadow-lg p-10 print:shadow-none print:border-none">
+    
+    <div class="border-b-2 border-gray-800 pb-6 mb-8 flex justify-between items-end">
+        <div>
+            <h1 class="text-3xl font-black text-gray-900 tracking-tight">E.M.M.A.S Hospital</h1>
+            <p class="text-sm text-gray-500 font-semibold uppercase tracking-wider mt-1">Official Clinical Note</p>
+        </div>
+        <div class="text-right text-sm text-gray-600">
+            <p><span class="font-bold">Date:</span> {{ patient.date_added.strftime('%Y-%m-%d') }}</p>
+            <p><span class="font-bold">Physician:</span> {{ doctor.name }}</p>
+        </div>
+    </div>
+
+    <div class="bg-gray-50 p-4 rounded-lg border border-gray-200 mb-8 grid grid-cols-2 gap-4 text-sm">
+        <div><span class="text-gray-500 uppercase font-bold text-xs">Patient Name</span><p class="font-bold text-gray-900 text-base">{{ patient.name }}</p></div>
+        <div><span class="text-gray-500 uppercase font-bold text-xs">IC Number</span><p class="font-bold text-gray-900">{{ patient.ic }}</p></div>
+        <div><span class="text-gray-500 uppercase font-bold text-xs">Age</span><p class="font-bold text-gray-900">{{ patient.age }}</p></div>
+        <div><span class="text-gray-500 uppercase font-bold text-xs">Room ID</span><p class="font-bold text-gray-900">{{ patient.room }}</p></div>
+    </div>
+
+    <div class="space-y-6 text-gray-800 leading-relaxed">
+        
+        <div><h3 class="font-bold text-lg text-blue-800 border-b pb-1 mb-2">1. Chief Complaint</h3>
+            <p class="pl-4">{{ form.cc|default("Acute fever and headache", true) }}</p></div>
+
+        <div><h3 class="font-bold text-lg text-blue-800 border-b pb-1 mb-2">2. History of Present Illness</h3>
+            <p class="pl-4">{{ form.hpi|default("Patient reports onset of high fever and severe headache starting 48 hours ago.", true) }}</p></div>
+
+        <div><h3 class="font-bold text-lg text-blue-800 border-b pb-1 mb-2">3. Past Medical History</h3>
+            <p class="pl-4">{{ form.pmh|default("N/A", true) }}</p></div>
+
+        <div><h3 class="font-bold text-lg text-blue-800 border-b pb-1 mb-2">4. Medication History</h3>
+            <p class="pl-4">{{ form.meds|default("N/A", true) }}</p></div>
+
+        <div><h3 class="font-bold text-lg text-blue-800 border-b pb-1 mb-2">5. Allergies</h3>
+            <p class="pl-4">{{ form.allergies|default("None reported", true) }}</p></div>
+
+        <div><h3 class="font-bold text-lg text-blue-800 border-b pb-1 mb-2">6. Social History</h3>
+            <ul class="pl-8 list-disc">
+                <li>Smoking: {% if form.sh_smoke %}Yes{% else %}No{% endif %}</li>
+                <li>Alcohol: {% if form.sh_alcohol %}Yes{% else %}No{% endif %}</li>
+                <li>Living Condition: {{ form.sh_living|default("Unknown", true) }}</li>
+                {% if form.sh_others %}<li>Notes: {{ form.sh_others }}</li>{% endif %}
+            </ul>
+        </div>
+
+        <div><h3 class="font-bold text-lg text-blue-800 border-b pb-1 mb-2">7. Vital Signs</h3>
+            <div class="pl-4 grid grid-cols-4 gap-4 max-w-lg">
+                <p><span class="font-bold text-gray-500">Temp:</span> {{ patient.temp }}</p>
+                <p><span class="font-bold text-gray-500">HR:</span> {{ patient.hr }}</p>
+                <p><span class="font-bold text-gray-500">RR:</span> {{ patient.rr }}</p>
+                <p><span class="font-bold text-gray-500">BP:</span> {{ patient.bp }}</p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="mt-16 pt-8 border-t flex justify-end">
+        <div class="text-center w-64">
+            <div class="border-b border-gray-400 mb-2 h-10 italic text-blue-900 signature-font">{{ doctor.name }}</div>
+            <p class="text-xs text-gray-500 font-bold uppercase">Digitally Signed By</p>
+            <p class="text-xs text-gray-400">{{ doctor.email }}</p>
+        </div>
+    </div>
+</div>
+
+<div class="fixed bottom-8 right-8 flex space-x-3 print:hidden">
+    <a href="/doctor/dashboard" class="bg-gray-800 hover:bg-gray-900 text-white shadow-xl px-6 py-3 rounded-full font-bold transition">Return to Dashboard</a>
+    <button onclick="window.print()" class="bg-blue-600 hover:bg-blue-700 text-white shadow-xl px-6 py-3 rounded-full font-bold transition"><i class="fas fa-print mr-2"></i>Print / Save PDF</button>
+</div>
+{% endblock %}

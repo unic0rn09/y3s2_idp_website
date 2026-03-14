@@ -1,0 +1,35 @@
+{% extends 'doctor_base.html' %}
+{% block header_title %}Consultation History{% endblock %}
+{% block header_subtitle %}View previously completed reports{% endblock %}
+
+{% block content %}
+<div class="bg-white border rounded-xl shadow-sm overflow-hidden relative">
+    <table class="w-full text-left text-sm">
+        <thead class="text-xs text-gray-500 uppercase bg-gray-50 border-b">
+            <tr>
+                <th class="py-4 px-6 font-semibold">Date Completed</th>
+                <th class="py-4 px-6 font-semibold">Patient Name</th>
+                <th class="py-4 px-6 font-semibold">IC Number</th>
+                <th class="py-4 px-6 font-semibold">Symptoms</th>
+                <th class="py-4 px-6 font-semibold text-right">Report</th>
+            </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-100">
+            {% for p in history %}
+            <tr class="hover:bg-gray-50 transition">
+                <td class="py-4 px-6 text-gray-600">{{ p.date_added.strftime('%Y-%m-%d %H:%M') }}</td>
+                <td class="py-4 px-6 font-bold text-gray-800">{{ p.name }}</td>
+                <td class="py-4 px-6 text-gray-500">{{ p.ic }}</td>
+                <td class="py-4 px-6 text-gray-600 truncate max-w-xs">{{ p.symptoms }}</td>
+                <td class="py-4 px-6 text-right">
+                    <a href="/doctor/report/{{ p.id }}" class="bg-blue-50 hover:bg-blue-600 hover:text-white text-blue-600 px-4 py-2 rounded-lg text-sm font-bold transition">View</a>
+                </td>
+            </tr>
+            {% endfor %}
+            {% if not history %}
+            <tr><td colspan="5" class="text-center py-8 text-gray-500">No completed consultations found.</td></tr>
+            {% endif %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}
