@@ -1,0 +1,85 @@
+{% extends 'doctor_base.html' %}
+
+{% block content %}
+<div class="mb-8">
+    <h2 class="text-lg font-bold text-gray-800 mb-4 flex items-center"><i class="fas fa-users text-blue-600 mr-2"></i> Patient Queue</h2>
+    
+    {% if not queue %}
+    <div class="bg-white rounded-xl border border-gray-100 p-10 text-center shadow-sm">
+        <div class="w-16 h-16 bg-blue-50 text-blue-400 rounded-full flex items-center justify-center mx-auto mb-3"><i class="fas fa-mug-hot text-2xl"></i></div>
+        <h3 class="font-bold text-gray-700 text-lg">No patients waiting</h3>
+        <p class="text-gray-500 text-sm">You're all caught up for now!</p>
+    </div>
+    {% endif %}
+
+    <div class="space-y-4">
+        {% for p in queue %}
+        <div class="bg-white border {% if p.priority %}border-red-200 shadow-md{% else %}border-gray-200 shadow-sm{% endif %} rounded-xl p-5 relative overflow-hidden">
+            {% if p.priority %}<div class="absolute top-0 right-0 bg-red-500 text-white text-[10px] font-bold px-3 py-1 rounded-bl-lg uppercase tracking-wide">Priority Patient</div>{% endif %}
+            
+            <div class="flex flex-col md:flex-row justify-between md:items-center">
+                <div class="mb-4 md:mb-0">
+                    <h3 class="text-xl font-bold text-gray-800 mb-1">{{ p.name }}</h3>
+                    <p class="text-sm text-gray-500 mb-2">IC: {{ p.ic }} • Age: {{ p.age }}</p>
+                    <div class="bg-gray-50 p-3 rounded-lg border border-gray-100 mt-3 max-w-lg">
+                        <span class="font-semibold text-gray-700 text-sm">Symptoms:</span>
+                        <p class="text-sm text-gray-600">{{ p.symptoms }}</p>
+                    </div>
+                </div>
+
+                <div class="flex flex-col md:items-end space-y-4">
+                    <div class="flex space-x-3">
+                        <div class="text-center bg-blue-50 border border-blue-100 rounded-lg p-2 w-20">
+                            <p class="text-[10px] text-gray-500 font-bold uppercase mb-1"><i class="fas fa-thermometer-half text-red-500 mr-1"></i>Temp</p>
+                            <p class="text-lg font-bold text-gray-800">{{ p.temp }}</p>
+                        </div>
+                        <div class="text-center bg-blue-50 border border-blue-100 rounded-lg p-2 w-20">
+                            <p class="text-[10px] text-gray-500 font-bold uppercase mb-1"><i class="fas fa-heartbeat text-red-500 mr-1"></i>HR</p>
+                            <p class="text-lg font-bold text-gray-800">{{ p.hr }}</p>
+                        </div>
+                        <div class="text-center bg-blue-50 border border-blue-100 rounded-lg p-2 w-20">
+                            <p class="text-[10px] text-gray-500 font-bold uppercase mb-1"><i class="fas fa-lungs text-blue-500 mr-1"></i>RR</p>
+                            <p class="text-lg font-bold text-gray-800">{{ p.rr }}</p>
+                        </div>
+                        <div class="text-center bg-blue-50 border border-blue-100 rounded-lg p-2 w-20">
+                            <p class="text-[10px] text-gray-500 font-bold uppercase mb-1"><i class="fas fa-tint text-blue-600 mr-1"></i>BP</p>
+                            <p class="text-lg font-bold text-gray-800">{{ p.bp }}</p>
+                        </div>
+                    </div>
+                    
+                    <a href="/doctor/consult/{{ p.id }}" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 px-8 rounded-lg shadow-md transition transform hover:scale-105">
+                        <i class="fas fa-stethoscope mr-2"></i> Consult
+                    </a>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<div class="mt-10">
+    <h2 class="text-lg font-bold text-gray-800 mb-4 flex items-center"><i class="fas fa-check-circle text-green-500 mr-2"></i> Completed Today</h2>
+    <div class="bg-white border rounded-xl shadow-sm overflow-hidden">
+        <table class="w-full text-left text-sm">
+            <thead class="bg-gray-50 text-gray-500 text-xs uppercase border-b">
+                <tr>
+                    <th class="py-3 px-5">Patient Name</th>
+                    <th class="py-3 px-5">Symptoms</th>
+                    <th class="py-3 px-5 text-right">Action</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-100">
+                {% for p in completed %}
+                <tr class="hover:bg-gray-50">
+                    <td class="py-3 px-5 font-semibold text-gray-800">{{ p.name }}</td>
+                    <td class="py-3 px-5 text-gray-600 truncate max-w-xs">{{ p.symptoms }}</td>
+                    <td class="py-3 px-5 text-right">
+                        <a href="/doctor/report/{{ p.id }}" class="text-blue-600 font-medium hover:underline text-xs">View Report</a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
