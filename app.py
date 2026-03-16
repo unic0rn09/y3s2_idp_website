@@ -184,6 +184,12 @@ def toggle_status():
         db.session.commit()
     return redirect(request.referrer or url_for('doctor_dashboard'))
 
+@app.route('/doctor/mock_consultation')
+def mock_consultation():
+    if 'user_id' not in session: return redirect(url_for('login'))
+    doctor = User.query.get(session['user_id'])
+    return render_template('mock_consultation.html', doctor=doctor)
+
 @app.route('/doctor/consult/<int:patient_id>')
 def live_consultation(patient_id):
     if 'user_id' not in session: return redirect(url_for('login'))
