@@ -51,29 +51,46 @@ class Patient(db.Model):
     sh_living = db.Column(db.String(50), default="")
     sh_others = db.Column(db.String(255), default="")
 
+
 # --- DATA COLLECTION HELPER ---
 def save_patient_data_to_folder(patient):
-    """Saves patient information into a structured folder hierarchy"""
+    """Saves patient information into a structured folder hierarchy:
+       instance/patient_records/IC_NUMBER/DATE_VISITED/file.json"""
+       
     # DO NOT save data if it is the Mock Test Patient
     if patient.ic == '999999-99-9999':
         return
 
-    base_dir = "patient_records"
-    now = datetime.now()
+    # 1. Start inside the local 'instance' folder
+    base_dir = os.path.join("instance", "patient_records")
     
-    year = now.strftime("%Y")
-    month = now.strftime("%m-%B")
-    day = now.strftime("%Y-%m-%d")
+    # 2. Extract the exact date the patient visited
+    date_visited = patient.date_added.strftime("%Y-%m-%d")
     
-    target_dir = os.path.join(base_dir, year, month, day)
+    # 3. Create the nested directory: instance/patient_records/IC/Date/
+    target_dir = os.path.join(base_dir, patient.ic, date_visited)
     os.makedirs(target_dir, exist_ok=True)
     
-    timestamp = now.strftime("%H%M%S")
-    filename = f"{patient.ic}_{timestamp}.json"
+    # 4. Intelligently name the file based on the stage of the visit
+    if patient.status == 'Waiting':
+        filename = "1_intake_and_vitals.json"
+    elif patient.status == 'Draft':
+        filename = "2_consultation_summary.json"
+    elif patient.status == 'Completed':
+        filename = "3_final_clinical_note.json"
+    else:
+        timestamp = datetime.now().strftime("%H%M%S")
+        filename = f"record_{timestamp}.json"
+        
     file_path = os.path.join(target_dir, filename)
     
+    # 5. Structure the data to be saved
     archive_data = {
-        "metadata": {"timestamp": now.strftime("%Y-%m-%d %H:%M:%S"), "room": patient.room},
+        "metadata": {
+            "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"), 
+            "room": patient.room,
+            "status": patient.status
+        },
         "patient": {"name": patient.name, "ic": patient.ic, "age": patient.age},
         "vitals": {"bp": patient.bp, "hr": patient.hr, "temp": patient.temp, "rr": patient.rr},
         "clinical_notes": {
@@ -84,8 +101,10 @@ def save_patient_data_to_folder(patient):
         "raw_transcription": patient.transcription
     }
     
+    # 6. Save the file into the new folder structure
     with open(file_path, 'w') as f:
         json.dump(archive_data, f, indent=4)
+#--------------------------------------------------------#
 
 def get_rooms_data():
     rooms = []
