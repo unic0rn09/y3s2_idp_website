@@ -8,110 +8,63 @@
 
 {% block content %}
 <div class="space-y-6">
-
     <div class="bg-gray-50 border border-gray-200 rounded-xl p-4 flex flex-col md:flex-row justify-between md:items-center shadow-sm">
         <div class="grid grid-cols-2 md:grid-cols-4 gap-6 flex-1 w-full text-sm">
-            <div>
-                <p class="text-xs text-gray-500 mb-1">Patient Name</p>
-                <p class="font-bold text-gray-800">{{ patient.name }}</p>
-            </div>
-            <div>
-                <p class="text-xs text-gray-500 mb-1">IC Number</p>
-                <p class="font-bold text-gray-800">{{ patient.ic }}</p>
-            </div>
-            <div>
-                <p class="text-xs text-gray-500 mb-1">Age</p>
-                <p class="font-bold text-gray-800">{{ patient.age }}</p>
-            </div>
-            <div>
-                <p class="text-xs text-gray-500 mb-1">Symptoms</p>
-                <p class="font-bold text-gray-800 truncate" title="{{ patient.symptoms }}">{{ patient.symptoms }}</p>
-            </div>
+            <div><p class="text-xs text-gray-500 mb-1">Patient Name</p><p class="font-bold text-gray-800">{{ patient.name }}</p></div>
+            <div><p class="text-xs text-gray-500 mb-1">IC Number</p><p class="font-bold text-gray-800">{{ patient.ic }}</p></div>
+            <div><p class="text-xs text-gray-500 mb-1">Age</p><p class="font-bold text-gray-800">{{ patient.age }}</p></div>
+            <div><p class="text-xs text-gray-500 mb-1">Symptoms</p><p class="font-bold text-gray-800 truncate" title="{{ patient.symptoms }}">{{ patient.symptoms }}</p></div>
         </div>
-
         <div class="flex items-center space-x-6 mt-4 md:mt-0 border-l border-gray-200 pl-6">
-            <div class="flex flex-col items-center justify-center">
-                <i class="fas fa-heartbeat text-blue-500 text-lg mb-1"></i>
-                <p class="text-[10px] text-gray-500 uppercase">BP</p>
-                <p class="font-bold text-sm">{{ patient.bp|default('-', true) }}</p>
-            </div>
-            <div class="flex flex-col items-center justify-center">
-                <i class="far fa-heart text-blue-500 text-lg mb-1"></i>
-                <p class="text-[10px] text-gray-500 uppercase">HR</p>
-                <p class="font-bold text-sm">{{ patient.hr|default('-', true) }}</p>
-            </div>
-            <div class="flex flex-col items-center justify-center">
-                <i class="fas fa-thermometer-half text-blue-500 text-lg mb-1"></i>
-                <p class="text-[10px] text-gray-500 uppercase">Temp</p>
-                <p class="font-bold text-sm">{{ patient.temp|default('-', true) }}</p>
-            </div>
-            <div class="flex flex-col items-center justify-center">
-                <i class="fas fa-lungs text-blue-500 text-lg mb-1"></i>
-                <p class="text-[10px] text-gray-500 uppercase">RR</p>
-                <p class="font-bold text-sm">{{ patient.rr|default('-', true) }}</p>
-            </div>
+            <div class="flex flex-col items-center justify-center"><i class="fas fa-heartbeat text-blue-500 text-lg mb-1"></i><p class="text-[10px] text-gray-500 uppercase">BP</p><p class="font-bold text-sm">{{ patient.bp }}</p></div>
+            <div class="flex flex-col items-center justify-center"><i class="far fa-heart text-blue-500 text-lg mb-1"></i><p class="text-[10px] text-gray-500 uppercase">HR</p><p class="font-bold text-sm">{{ patient.hr }}</p></div>
+            <div class="flex flex-col items-center justify-center"><i class="fas fa-thermometer-half text-blue-500 text-lg mb-1"></i><p class="text-[10px] text-gray-500 uppercase">Temp</p><p class="font-bold text-sm">{{ patient.temp }}</p></div>
+            <div class="flex flex-col items-center justify-center"><i class="fas fa-lungs text-blue-500 text-lg mb-1"></i><p class="text-[10px] text-gray-500 uppercase">RR</p><p class="font-bold text-sm">{{ patient.rr }}</p></div>
         </div>
     </div>
 
     <div class="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden flex flex-col min-h-[500px]">
-        
         <div class="p-12 flex flex-col items-center justify-center border-b border-gray-100 flex-1 relative bg-white transition-all duration-500" id="audioSection">
-            
             <div id="initialState" class="text-center transition-all duration-300 transform">
-                <div class="w-20 h-20 bg-blue-50 rounded-full flex items-center justify-center mx-auto mb-6">
-                    <i class="fas fa-microphone text-3xl text-blue-500"></i>
-                </div>
+                <div class="w-20 h-20 bg-blue-50 rounded-full flex items-center justify-center mx-auto mb-6"><i class="fas fa-microphone text-3xl text-blue-500"></i></div>
                 <h3 class="text-xl font-bold text-gray-900 mb-2">Ready to Start Consultation</h3>
                 <p class="text-gray-500 text-sm mb-8">Click the button below to enable your microphone and begin</p>
-                <button onclick="startSession()" class="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3.5 rounded-lg font-bold shadow-md transition transform hover:scale-105 active:scale-95 flex items-center mx-auto">
-                    <i class="far fa-play-circle text-lg mr-2"></i> Start Session
-                </button>
+                <button onclick="startSession()" class="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3.5 rounded-lg font-bold shadow-md transition transform hover:scale-105 active:scale-95 flex items-center mx-auto"><i class="far fa-play-circle text-lg mr-2"></i> Start Session</button>
             </div>
-
             <div id="activeState" class="hidden w-full flex flex-col items-center justify-center space-y-8">
-                
                 <div class="w-full bg-blue-50/50 rounded-xl h-24 flex items-center justify-center overflow-hidden">
-                    <div id="waveContainer" class="flex items-end justify-center space-x-1.5 w-full px-4 h-16">
-                        </div>
+                    <div id="waveContainer" class="flex items-end justify-center space-x-1.5 w-full px-4 h-16"></div>
                 </div>
-
                 <div class="flex items-center space-x-4">
-                    <button id="btnPause" onclick="togglePause()" class="bg-orange-500 hover:bg-orange-600 text-white px-8 py-3 rounded-lg font-bold shadow-md transition flex items-center w-40 justify-center">
-                        <i class="fas fa-pause mr-2" id="pauseIcon"></i> <span id="pauseText">Pause</span>
-                    </button>
-                    <button onclick="confirmFinish()" class="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-lg font-bold shadow-md transition flex items-center">
-                        <i class="fas fa-check mr-2"></i> Finish Consultation
-                    </button>
+                    <button id="btnPause" onclick="togglePause()" class="bg-orange-500 hover:bg-orange-600 text-white px-8 py-3 rounded-lg font-bold shadow-md transition flex items-center w-40 justify-center"><i class="fas fa-pause mr-2" id="pauseIcon"></i> <span id="pauseText">Pause</span></button>
+                    <button onclick="confirmFinish()" class="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-lg font-bold shadow-md transition flex items-center"><i class="fas fa-check mr-2"></i> Finish Consultation</button>
                 </div>
             </div>
-
             <div id="recordingIndicator" class="absolute top-4 right-4 bg-red-50 text-red-600 px-3 py-1.5 rounded-full text-xs font-bold flex items-center hidden shadow-sm border border-red-100">
-                <div class="w-2 h-2 rounded-full bg-red-500 mr-2 animate-pulse" id="redDot"></div>
-                <span id="recordingStatusText">Recording</span>
+                <div class="w-2 h-2 rounded-full bg-red-500 mr-2 animate-pulse" id="redDot"></div><span id="recordingStatusText">Recording</span>
             </div>
         </div>
 
         <div class="bg-gray-50 flex flex-col flex-1 min-h-[250px]">
             <div class="px-6 py-4 flex justify-between items-center bg-white border-b border-gray-100 shadow-sm">
                 <h4 class="font-bold text-gray-800">Live Transcription</h4>
-                <button id="editToggleBtn" onclick="toggleEdit()" class="text-blue-600 hover:text-blue-800 text-sm font-medium transition flex items-center hidden">
-                    <i class="fas fa-pen mr-1.5 text-xs"></i> Edit
-                </button>
+                <button id="editToggleBtn" onclick="toggleEdit()" class="text-blue-600 hover:text-blue-800 text-sm font-medium transition flex items-center hidden"><i class="fas fa-pen mr-1.5 text-xs"></i> Edit</button>
             </div>
-            <textarea id="transcriptionBox" readonly class="w-full h-full flex-1 p-6 bg-gray-50 outline-none resize-none text-gray-700 leading-relaxed font-medium" placeholder="Transcription will appear here..."></textarea>
+            <form id="finishLiveForm" action="/doctor/finish_live/{{ patient.id }}" method="POST" class="h-full flex-1">
+                <textarea name="transcription" id="transcriptionBox" readonly class="w-full h-full p-6 bg-gray-50 outline-none resize-none text-gray-700 leading-relaxed font-medium" placeholder="Transcription will appear here..."></textarea>
+            </form>
         </div>
-
     </div>
 </div>
 
 <div id="exitModal" class="fixed inset-0 bg-gray-900 bg-opacity-75 hidden flex items-center justify-center z-[100]">
     <div class="bg-white rounded-xl shadow-2xl w-full max-w-sm p-6 text-center transform transition-all scale-95 opacity-0 duration-300" id="exitModalContent">
-        <div class="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-4 border border-red-100"><i class="fas fa-arrow-left text-2xl text-red-500"></i></div>
+        <div class="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-4 border border-red-100"><i class="fas fa-exclamation-triangle text-2xl text-red-500"></i></div>
         <h3 class="font-bold text-lg text-gray-800 mb-2">Exit Session?</h3>
-        <p class="text-sm text-gray-500 mb-6">Are you sure you want to exit? The recorded audio will be lost.</p>
+        <p class="text-sm text-gray-500 mb-6">Are you sure you want to exit? The patient will remain in the queue, but your recorded audio will be lost.</p>
         <div class="flex space-x-3">
-            <button onclick="closeModal('exitModal')" class="w-1/2 py-2.5 border border-gray-200 rounded-lg text-sm font-bold text-gray-600 hover:bg-gray-50 transition">Stay</button>
-            <a href="/doctor/dashboard" class="w-1/2 py-2.5 bg-red-600 text-white rounded-lg text-sm font-bold hover:bg-red-700 block text-center transition">Exit</a>
+            <button onclick="closeModal('exitModal')" class="w-1/2 py-2.5 border border-gray-200 rounded-lg text-sm font-bold text-gray-600 hover:bg-gray-50 transition">No, stay</button>
+            <a href="/doctor/cancel_live/{{ patient.id }}" class="w-1/2 py-2.5 bg-red-600 text-white rounded-lg text-sm font-bold hover:bg-red-700 block text-center transition">Yes, Quit</a>
         </div>
     </div>
 </div>
@@ -120,11 +73,9 @@
     <div class="bg-white rounded-xl shadow-2xl w-full max-w-sm p-6 text-center transform transition-all scale-95 opacity-0 duration-300" id="finishModalContent">
         <div class="w-16 h-16 bg-blue-50 rounded-full flex items-center justify-center mx-auto mb-4 border border-blue-100"><i class="far fa-question-circle text-3xl text-blue-600"></i></div>
         <h3 class="font-bold text-lg text-gray-800 mb-2">Complete Consultation?</h3>
-        <p class="text-sm text-gray-500 mb-6">Are you sure you want to finish this consultation session? The transcription will be processed.</p>
+        <p class="text-sm text-gray-500 mb-6">Generate structural notes from the transcription?</p>
         <div class="flex space-x-3">
-            <form action="/doctor/summary/{{ patient.id }}" method="GET" class="w-1/2">
-                <button type="submit" class="w-full py-2.5 bg-blue-600 text-white rounded-lg text-sm font-bold hover:bg-blue-700 transition">Yes, Complete</button>
-            </form>
+            <button type="button" onclick="document.getElementById('finishLiveForm').submit()" class="w-1/2 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-bold hover:bg-blue-700 transition">Yes, Complete</button>
             <button type="button" onclick="closeModal('finishModal')" class="w-1/2 py-2.5 border border-gray-200 rounded-lg text-sm font-bold text-gray-600 hover:bg-gray-50 transition">Cancel</button>
         </div>
     </div>
@@ -133,19 +84,9 @@
 
 {% block scripts %}
 <script>
-    // System Variables
-    let isPaused = false;
-    let isEditing = false;
-    
-    // Audio Context Variables
-    let mediaRecorder;
-    let audioContext;
-    let analyser;
-    let dataArray;
-    let animationId;
-    let audioChunks = [];
+    let isPaused = false; let isEditing = false;
+    let mediaRecorder; let audioContext; let analyser; let dataArray; let animationId; let audioChunks = [];
 
-    // --- Modal Control ---
     function confirmExit() { openModal('exitModal'); }
     function confirmFinish() { 
         if(mediaRecorder && mediaRecorder.state !== "inactive") mediaRecorder.stop();
@@ -154,72 +95,48 @@
     
     function openModal(id) {
         document.getElementById(id).classList.remove('hidden');
-        setTimeout(() => {
-            document.getElementById(id + 'Content').classList.remove('scale-95', 'opacity-0');
-            document.getElementById(id + 'Content').classList.add('scale-100', 'opacity-100');
-        }, 10);
+        setTimeout(() => { document.getElementById(id + 'Content').classList.remove('scale-95', 'opacity-0'); document.getElementById(id + 'Content').classList.add('scale-100', 'opacity-100'); }, 10);
     }
-    
     function closeModal(id) {
-        document.getElementById(id + 'Content').classList.remove('scale-100', 'opacity-100');
-        document.getElementById(id + 'Content').classList.add('scale-95', 'opacity-0');
+        document.getElementById(id + 'Content').classList.remove('scale-100', 'opacity-100'); document.getElementById(id + 'Content').classList.add('scale-95', 'opacity-0');
         setTimeout(() => { document.getElementById(id).classList.add('hidden'); }, 300);
     }
 
-    // --- Real Microphone Integration ---
     async function startSession() {
         try {
-            // Request Real Microphone Access
             const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-            
-            // Set up MediaRecorder
             mediaRecorder = new MediaRecorder(stream);
             mediaRecorder.start();
             mediaRecorder.ondataavailable = e => { audioChunks.push(e.data); };
             
-            // Set up Web Audio API for Real-time Visualizer
             audioContext = new (window.AudioContext || window.webkitAudioContext)();
             analyser = audioContext.createAnalyser();
             const source = audioContext.createMediaStreamSource(stream);
             source.connect(analyser);
-            analyser.fftSize = 64; // Dictates how many bars we get
-            const bufferLength = analyser.frequencyBinCount;
-            dataArray = new Uint8Array(bufferLength);
+            analyser.fftSize = 64; 
+            dataArray = new Uint8Array(analyser.frequencyBinCount);
 
-            // Swap UI
             document.getElementById('initialState').classList.add('hidden');
             document.getElementById('activeState').classList.remove('hidden');
             document.getElementById('activeState').classList.add('flex');
             document.getElementById('recordingIndicator').classList.remove('hidden');
             document.getElementById('editToggleBtn').classList.remove('hidden');
 
-            const tBox = document.getElementById('transcriptionBox');
-            tBox.value = "";
-            
             setRecordingUIStatus(true);
-            drawRealWaves(); // Start real-time drawing
+            drawRealWaves(); 
 
-            // Mock transcription incoming text (Replace later with your AI stream)
-            setTimeout(() => {
-                if(!isPaused) { tBox.value += "Patient reports experiencing high fever for the past three days... Accompanied by severe headache and body aches.\n\n"; }
-            }, 3000);
+            // Mock transcription injection
+            setTimeout(() => { if(!isPaused) { document.getElementById('transcriptionBox').value += "Patient reports experiencing high fever for the past three days...\n\n"; } }, 3000);
 
-        } catch (err) {
-            alert("Microphone access is required. Please allow microphone permissions in your browser.");
-            console.error("Mic access error:", err);
-        }
+        } catch (err) { alert("Microphone access is required."); }
     }
 
-    // --- Real-Time Waveform Drawer ---
     function drawRealWaves() {
-        if(isPaused) return; // Freeze visualization when paused
-        
+        if(isPaused) return; 
         animationId = requestAnimationFrame(drawRealWaves);
         analyser.getByteFrequencyData(dataArray);
 
         const container = document.getElementById('waveContainer');
-        
-        // Build the physical DOM bars on first frame
         if (container.children.length === 0) {
              for(let i=0; i<25; i++) {
                  let bar = document.createElement('div');
@@ -228,108 +145,55 @@
              }
         }
         
-        // Update heights based on microphone volume frequency
         const bars = container.children;
         for(let i=0; i<25; i++) {
-            let val = dataArray[i] || 0;
-            // Map the byte value (0-255) to a pixel height (4px to 60px)
-            let height = Math.max(4, (val / 255) * 60);
+            let height = Math.max(4, ((dataArray[i] || 0) / 255) * 60);
             bars[i].style.height = height + 'px';
-            
-            // Shift colors slightly if loud
             if(height > 40) bars[i].className = 'w-2 bg-blue-400 rounded-full transition-all duration-75';
             else bars[i].className = 'w-2 bg-blue-600 rounded-full transition-all duration-75';
         }
     }
 
-    // --- Pause/Resume Controls ---
     function togglePause() {
-        const btn = document.getElementById('btnPause');
-        const icon = document.getElementById('pauseIcon');
-        const text = document.getElementById('pauseText');
-
+        const btn = document.getElementById('btnPause'); const icon = document.getElementById('pauseIcon'); const text = document.getElementById('pauseText');
         isPaused = !isPaused;
 
         if (isPaused) {
-            // Pause Recorder
             if(mediaRecorder.state === "recording") mediaRecorder.pause();
-            
-            // Switch UI to Green Resume
-            btn.classList.replace('bg-orange-500', 'bg-green-600');
-            btn.classList.replace('hover:bg-orange-600', 'hover:bg-green-700');
-            icon.classList.replace('fa-pause', 'fa-play');
-            text.innerText = "Resume";
-            
-            setRecordingUIStatus(false);
-            cancelAnimationFrame(animationId); // Stop drawing waves
-            flattenWaves(); // Flatten visuals
-
+            btn.classList.replace('bg-orange-500', 'bg-green-600'); btn.classList.replace('hover:bg-orange-600', 'hover:bg-green-700');
+            icon.classList.replace('fa-pause', 'fa-play'); text.innerText = "Resume";
+            setRecordingUIStatus(false); cancelAnimationFrame(animationId);
+            const bars = document.getElementById('waveContainer').querySelectorAll('div'); bars.forEach(bar => { bar.style.height = '4px'; });
         } else {
-            // Resume Recorder
             if(mediaRecorder.state === "paused") mediaRecorder.resume();
-            
-            // Switch UI back to Orange Pause
-            btn.classList.replace('bg-green-600', 'bg-orange-500');
-            btn.classList.replace('hover:bg-green-700', 'hover:bg-orange-600');
-            icon.classList.replace('fa-play', 'fa-pause');
-            text.innerText = "Pause";
-            
-            setRecordingUIStatus(true);
-            drawRealWaves(); // Restart drawing
+            btn.classList.replace('bg-green-600', 'bg-orange-500'); btn.classList.replace('hover:bg-green-700', 'hover:bg-orange-600');
+            icon.classList.replace('fa-play', 'fa-pause'); text.innerText = "Pause";
+            setRecordingUIStatus(true); drawRealWaves(); 
         }
-    }
-
-    function flattenWaves() {
-        const container = document.getElementById('waveContainer');
-        const bars = container.querySelectorAll('div');
-        bars.forEach(bar => { bar.style.height = '4px'; });
     }
 
     function setRecordingUIStatus(isRecording) {
-        const indicatorDot = document.getElementById('redDot');
-        const indicatorText = document.getElementById('recordingStatusText');
-        const indicatorBox = document.getElementById('recordingIndicator');
-
+        const iDot = document.getElementById('redDot'); const iText = document.getElementById('recordingStatusText'); const iBox = document.getElementById('recordingIndicator');
         if (isRecording) {
-            indicatorDot.classList.add('animate-pulse', 'bg-red-500');
-            indicatorDot.classList.remove('bg-gray-400');
-            indicatorText.innerText = "Recording";
-            indicatorText.classList.replace('text-gray-600', 'text-red-600');
-            indicatorBox.classList.replace('bg-gray-100', 'bg-red-50');
-            indicatorBox.classList.replace('border-gray-200', 'border-red-100');
+            iDot.classList.add('animate-pulse', 'bg-red-500'); iDot.classList.remove('bg-gray-400');
+            iText.innerText = "Recording"; iText.classList.replace('text-gray-600', 'text-red-600');
+            iBox.classList.replace('bg-gray-100', 'bg-red-50'); iBox.classList.replace('border-gray-200', 'border-red-100');
         } else {
-            indicatorDot.classList.remove('animate-pulse', 'bg-red-500');
-            indicatorDot.classList.add('bg-gray-400');
-            indicatorText.innerText = "Paused";
-            indicatorText.classList.replace('text-red-600', 'text-gray-600');
-            indicatorBox.classList.replace('bg-red-50', 'bg-gray-100');
-            indicatorBox.classList.replace('border-red-100', 'border-gray-200');
+            iDot.classList.remove('animate-pulse', 'bg-red-500'); iDot.classList.add('bg-gray-400');
+            iText.innerText = "Paused"; iText.classList.replace('text-red-600', 'text-gray-600');
+            iBox.classList.replace('bg-red-50', 'bg-gray-100'); iBox.classList.replace('border-red-100', 'border-gray-200');
         }
     }
 
-    // --- Transcription Edit Logic ---
     function toggleEdit() {
-        const tBox = document.getElementById('transcriptionBox');
-        const btn = document.getElementById('editToggleBtn');
+        const tBox = document.getElementById('transcriptionBox'); const btn = document.getElementById('editToggleBtn');
         isEditing = !isEditing;
-
         if (isEditing) {
-            tBox.removeAttribute('readonly');
-            tBox.classList.replace('bg-gray-50', 'bg-white');
-            tBox.classList.add('ring-2', 'ring-inset', 'ring-blue-500');
-            tBox.focus();
-            
-            btn.innerHTML = '<i class="fas fa-save mr-1.5 text-xs"></i> Save';
-            btn.classList.replace('text-blue-600', 'text-green-600');
-            btn.classList.replace('hover:text-blue-800', 'hover:text-green-800');
+            tBox.removeAttribute('readonly'); tBox.classList.replace('bg-gray-50', 'bg-white'); tBox.classList.add('ring-2', 'ring-inset', 'ring-blue-500'); tBox.focus();
+            btn.innerHTML = '<i class="fas fa-save mr-1.5 text-xs"></i> Save'; btn.classList.replace('text-blue-600', 'text-green-600'); btn.classList.replace('hover:text-blue-800', 'hover:text-green-800');
         } else {
-            tBox.setAttribute('readonly', 'true');
-            tBox.classList.replace('bg-white', 'bg-gray-50');
-            tBox.classList.remove('ring-2', 'ring-inset', 'ring-blue-500');
-            
-            btn.innerHTML = '<i class="fas fa-pen mr-1.5 text-xs"></i> Edit';
-            btn.classList.replace('text-green-600', 'text-blue-600');
-            btn.classList.replace('hover:text-green-800', 'hover:text-blue-800');
+            tBox.setAttribute('readonly', 'true'); tBox.classList.replace('bg-white', 'bg-gray-50'); tBox.classList.remove('ring-2', 'ring-inset', 'ring-blue-500');
+            btn.innerHTML = '<i class="fas fa-pen mr-1.5 text-xs"></i> Edit'; btn.classList.replace('text-green-600', 'text-blue-600'); btn.classList.replace('hover:text-green-800', 'hover:text-blue-800');
         }
     }
 </script>

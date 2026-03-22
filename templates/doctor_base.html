@@ -12,12 +12,12 @@
     <aside class="w-64 bg-white border-r border-gray-200 flex flex-col justify-between hidden md:flex">
         <div>
             <div class="p-6 flex items-center space-x-3">
-                <div class="bg-blue-600 text-white p-2 rounded-lg font-bold">EM</div>
+                <div class="bg-blue-600 text-white p-2 rounded-lg font-bold">IDP</div>
                 <div class="font-bold text-lg text-gray-800">E.M.M.A.S<br><span class="text-xs text-gray-400 font-normal">Doctor Portal</span></div>
             </div>
             <nav class="mt-4 space-y-1 px-4">
                 <a href="/doctor/dashboard" class="flex items-center space-x-3 px-4 py-3 rounded-lg {% if request.path == '/doctor/dashboard' %}bg-blue-50 text-blue-600 font-semibold{% else %}text-gray-600 hover:bg-gray-50{% endif %}">
-                    <i class="fas fa-th-large w-5"></i><span>Dashboard</span>
+                    <i class="fas fa-th-2x1 w-5"></i><span>Dashboard</span>
                 </a>
                 
                 <a href="/doctor/mock_consultation" class="flex items-center space-x-3 px-4 py-3 rounded-lg {% if request.path == '/doctor/mock_consultation' %}bg-blue-50 text-blue-600 font-semibold{% else %}text-gray-600 hover:bg-gray-50{% endif %}">
@@ -51,11 +51,11 @@
                     {% block back_button %}{% endblock %}
                     {% block header_title %}Dashboard{% endblock %}
                 </h1>
-                <p class="text-gray-500 text-sm">{% block header_subtitle %}Welcome back, {{ doctor.name }}{% endblock %}</p>
+                <p class="text-gray-600 text-sm">{% block header_subtitle %}Welcome back, {{ doctor.name }}{% endblock %}</p>
             </div>
             <div class="flex items-center space-x-3">
                 <div class="text-right hidden sm:block">
-                    <p class="font-bold text-gray-800">Room {{ doctor.room }}</p>
+                    <p class="font-bold text-lg text-gray-800">Room {{ doctor.room }}</p>
                     <p class="text-xs text-gray-500">{{ doctor.name }}</p>
                 </div>
                 <div class="bg-blue-600 text-white w-10 h-10 rounded-full flex items-center justify-center font-bold"><i class="fas fa-user-md"></i></div>

@@ -30,26 +30,29 @@
                 <div class="flex flex-col md:items-end space-y-4">
                     <div class="flex space-x-3">
                         <div class="text-center bg-blue-50 border border-blue-100 rounded-lg p-2 w-20">
-                            <p class="text-[10px] text-gray-500 font-bold uppercase mb-1"><i class="fas fa-thermometer-half text-red-500 mr-1"></i>Temp</p>
-                            <p class="text-lg font-bold text-gray-800">{{ p.temp }}</p>
+                            <p class="text-[10px] text-gray-500 font-bold uppercase mb-1"><i class="fas fa-thermometer-half text-red-500 mr-1"></i>Temp</p><p class="text-lg font-bold text-gray-800">{{ p.temp }}</p>
                         </div>
                         <div class="text-center bg-blue-50 border border-blue-100 rounded-lg p-2 w-20">
-                            <p class="text-[10px] text-gray-500 font-bold uppercase mb-1"><i class="fas fa-heartbeat text-red-500 mr-1"></i>HR</p>
-                            <p class="text-lg font-bold text-gray-800">{{ p.hr }}</p>
+                            <p class="text-[10px] text-gray-500 font-bold uppercase mb-1"><i class="fas fa-heartbeat text-red-500 mr-1"></i>HR</p><p class="text-lg font-bold text-gray-800">{{ p.hr }}</p>
                         </div>
                         <div class="text-center bg-blue-50 border border-blue-100 rounded-lg p-2 w-20">
-                            <p class="text-[10px] text-gray-500 font-bold uppercase mb-1"><i class="fas fa-lungs text-blue-500 mr-1"></i>RR</p>
-                            <p class="text-lg font-bold text-gray-800">{{ p.rr }}</p>
+                            <p class="text-[10px] text-gray-500 font-bold uppercase mb-1"><i class="fas fa-lungs text-blue-500 mr-1"></i>RR</p><p class="text-lg font-bold text-gray-800">{{ p.rr }}</p>
                         </div>
                         <div class="text-center bg-blue-50 border border-blue-100 rounded-lg p-2 w-20">
-                            <p class="text-[10px] text-gray-500 font-bold uppercase mb-1"><i class="fas fa-tint text-blue-600 mr-1"></i>BP</p>
-                            <p class="text-lg font-bold text-gray-800">{{ p.bp }}</p>
+                            <p class="text-[10px] text-gray-500 font-bold uppercase mb-1"><i class="fas fa-tint text-blue-600 mr-1"></i>BP</p><p class="text-lg font-bold text-gray-800">{{ p.bp }}</p>
                         </div>
                     </div>
                     
-                    <a href="/doctor/consult/{{ p.id }}" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 px-8 rounded-lg shadow-md transition transform hover:scale-105">
+                    {% if p.status == 'Draft' %}
+                    <div class="flex flex-col items-end space-y-2 mt-2 w-full">
+                        <button disabled class="bg-blue-300 text-white font-bold py-2.5 px-8 rounded-lg shadow-sm w-full cursor-not-allowed">On-going</button>
+                        <a href="/doctor/summary/{{ p.id }}" class="text-blue-600 hover:text-blue-800 font-bold text-sm underline text-center w-full block">Continue Editing</a>
+                    </div>
+                    {% else %}
+                    <a href="/doctor/consult/{{ p.id }}" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 px-8 rounded-lg shadow-md transition transform hover:scale-105 w-full text-center">
                         <i class="fas fa-stethoscope mr-2"></i> Consult
                     </a>
+                    {% endif %}
                 </div>
             </div>
         </div>
@@ -57,20 +60,26 @@
     </div>
 </div>
 
-<div class="mt-10">
-    <h2 class="text-lg font-bold text-gray-800 mb-4 flex items-center"><i class="fas fa-check-circle text-green-500 mr-2"></i> Completed Today</h2>
+<div class="mt-10 mb-10">
+    <div class="flex justify-between items-center mb-4">
+        <h2 class="text-lg font-bold text-gray-800 flex items-center"><i class="fas fa-check-circle text-green-500 mr-2"></i> Completed Today</h2>
+        <a href="/doctor/history" class="text-sm font-bold text-blue-600 hover:text-blue-800 transition"><i class="fas fa-history mr-1"></i> Past History</a>
+    </div>
+    
     <div class="bg-white border rounded-xl shadow-sm overflow-hidden">
         <table class="w-full text-left text-sm">
             <thead class="bg-gray-50 text-gray-500 text-xs uppercase border-b">
                 <tr>
+                    <th class="py-3 px-5">Time</th>
                     <th class="py-3 px-5">Patient Name</th>
                     <th class="py-3 px-5">Symptoms</th>
                     <th class="py-3 px-5 text-right">Action</th>
                 </tr>
             </thead>
             <tbody class="divide-y divide-gray-100">
-                {% for p in completed %}
-                <tr class="hover:bg-gray-50">
+                {% for p in completed_today %}
+                <tr class="hover:bg-gray-50 transition {% if loop.index > 3 %}hidden extra-row{% endif %}">
+                    <td class="py-3 px-5 text-gray-500">{{ p.date_added.strftime('%H:%M') }}</td>
                     <td class="py-3 px-5 font-semibold text-gray-800">{{ p.name }}</td>
                     <td class="py-3 px-5 text-gray-600 truncate max-w-xs">{{ p.symptoms }}</td>
                     <td class="py-3 px-5 text-right">
@@ -78,8 +87,36 @@
                     </td>
                 </tr>
                 {% endfor %}
+                {% if not completed_today %}
+                <tr><td colspan="4" class="py-6 text-center text-gray-500">No consultations completed today.</td></tr>
+                {% endif %}
             </tbody>
         </table>
+        
+        {% if completed_today|length > 3 %}
+        <div class="p-3 bg-gray-50 border-t text-center">
+            <button onclick="toggleRows()" id="viewMoreBtn" class="text-blue-600 font-bold text-sm hover:underline">View More ({{ completed_today|length - 3 }} hidden)</button>
+        </div>
+        {% endif %}
     </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    let rowsExpanded = false;
+    function toggleRows() {
+        const rows = document.querySelectorAll('.extra-row');
+        const btn = document.getElementById('viewMoreBtn');
+        rowsExpanded = !rowsExpanded;
+        
+        rows.forEach(r => {
+            if (rowsExpanded) r.classList.remove('hidden');
+            else r.classList.add('hidden');
+        });
+        
+        if (rowsExpanded) btn.innerText = "View Less";
+        else btn.innerText = "View More ({{ completed_today|length - 3 }} hidden)";
+    }
+</script>
 {% endblock %}

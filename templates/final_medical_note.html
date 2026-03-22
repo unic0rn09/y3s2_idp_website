@@ -1,79 +1,172 @@
 {% extends 'doctor_base.html' %}
 
 {% block back_button %}
-<a href="/doctor/summary/{{ patient.id }}" class="mr-4 text-gray-400 hover:text-blue-500 transition" title="Back to edit"><i class="fas fa-arrow-left"></i></a>
+<a href="/doctor/summary/{{ patient.id }}" class="mr-4 text-gray-400 hover:text-blue-500 transition print-hidden" title="Back to edit"><i class="fas fa-arrow-left"></i></a>
 {% endblock %}
-{% block header_title %}Final Medical Report{% endblock %}
-{% block header_subtitle %}Official consultation record{% endblock %}
+{% block header_title %}<span class="print-hidden">Final Medical Report</span>{% endblock %}
+{% block header_subtitle %}<span class="print-hidden">Official consultation record</span>{% endblock %}
 
 {% block content %}
-<div class="max-w-4xl mx-auto bg-white border border-gray-200 rounded-xl shadow-lg p-10 print:shadow-none print:border-none">
+<style>
+    @media print {
+        /* Reset layout restrictions from the base template */
+        body, html, main {
+            height: auto !important;
+            overflow: visible !important;
+            display: block !important;
+            background-color: white !important;
+        }
+        /* Hide everything by default */
+        body * {
+            visibility: hidden;
+        }
+        /* Show ONLY the printable report area */
+        #printableArea, #printableArea * {
+            visibility: visible;
+        }
+        #printableArea {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 100%;
+            margin: 0;
+            padding: 0;
+            box-shadow: none !important;
+            border: none !important;
+        }
+        /* Hide buttons inside the print area */
+        .print-hidden {
+            display: none !important;
+        }
+        /* Ensure borders print crisply */
+        .print-border-black {
+            border-color: #000 !important;
+        }
+        .page-break-avoid {
+            break-inside: avoid;
+        }
+    }
+</style>
+
+<div id="printableArea" class="max-w-4xl mx-auto bg-white border border-gray-300 shadow-xl p-12 mb-20 text-black font-sans">
     
-    <div class="border-b-2 border-gray-800 pb-6 mb-8 flex justify-between items-end">
-        <div>
-            <h1 class="text-3xl font-black text-gray-900 tracking-tight">E.M.M.A.S Hospital</h1>
-            <p class="text-sm text-gray-500 font-semibold uppercase tracking-wider mt-1">Official Clinical Note</p>
+    <div class="flex justify-between items-start border-b-2 print-border-black border-black pb-6 mb-6">
+        <div class="flex items-center space-x-4">
+            <div class="w-16 h-16 bg-black text-white flex items-center justify-center font-bold text-3xl" style="-webkit-print-color-adjust: exact; print-color-adjust: exact;">EM</div>
+            <div>
+                <h1 class="text-2xl font-bold uppercase tracking-widest text-black mb-1">Universiti Malaya Medical Center</h1>
+                <p class="text-xs text-gray-700">University Malaya Medical Centre Lembah Pantai, 59100, Kuala Lumpur, Malaysia.</p>
+                <p class="text-xs text-gray-700">Tel: +603-79494422 | Web: www.ummc.edu.my/</p>
+            </div>
         </div>
-        <div class="text-right text-sm text-gray-600">
-            <p><span class="font-bold">Date:</span> {{ patient.date_added.strftime('%Y-%m-%d') }}</p>
-            <p><span class="font-bold">Physician:</span> {{ doctor.name }}</p>
+        <div class="text-right">
+            <h2 class="text-xl font-bold text-black uppercase tracking-widest">Clinical Report</h2>
+            <p class="text-sm font-semibold mt-2">Date: {{ patient.date_added.strftime('%d %b %Y') }}</p>
+            <p class="text-sm">Time: {{ patient.date_added.strftime('%I:%M %p') }}</p>
         </div>
     </div>
 
-    <div class="bg-gray-50 p-4 rounded-lg border border-gray-200 mb-8 grid grid-cols-2 gap-4 text-sm">
-        <div><span class="text-gray-500 uppercase font-bold text-xs">Patient Name</span><p class="font-bold text-gray-900 text-base">{{ patient.name }}</p></div>
-        <div><span class="text-gray-500 uppercase font-bold text-xs">IC Number</span><p class="font-bold text-gray-900">{{ patient.ic }}</p></div>
-        <div><span class="text-gray-500 uppercase font-bold text-xs">Age</span><p class="font-bold text-gray-900">{{ patient.age }}</p></div>
-        <div><span class="text-gray-500 uppercase font-bold text-xs">Room ID</span><p class="font-bold text-gray-900">{{ patient.room }}</p></div>
+    <div class="border print-border-black border-black mb-8 p-0">
+        <div class="grid grid-cols-4 divide-x print-border-black divide-black border-b print-border-black border-black">
+            <div class="p-3 col-span-2">
+                <p class="text-[10px] uppercase font-bold text-gray-500 mb-1">Patient Name</p>
+                <p class="font-bold text-black text-sm uppercase">{{ patient.name }}</p>
+            </div>
+            <div class="p-3">
+                <p class="text-[10px] uppercase font-bold text-gray-500 mb-1">IC Number</p>
+                <p class="font-bold text-black text-sm">{{ patient.ic }}</p>
+            </div>
+            <div class="p-3">
+                <p class="text-[10px] uppercase font-bold text-gray-500 mb-1">Age</p>
+                <p class="font-bold text-black text-sm">{{ patient.age }} YRS</p>
+            </div>
+        </div>
+        <div class="grid grid-cols-4 divide-x print-border-black divide-black">
+            <div class="p-3 col-span-2">
+                <p class="text-[10px] uppercase font-bold text-gray-500 mb-1">Attending Physician</p>
+                <p class="font-bold text-black text-sm uppercase">Dr. {{ doctor.name }}</p>
+            </div>
+            <div class="p-3">
+                <p class="text-[10px] uppercase font-bold text-gray-500 mb-1">Department</p>
+                <p class="font-bold text-black text-sm">General Medicine</p>
+            </div>
+            <div class="p-3">
+                <p class="text-[10px] uppercase font-bold text-gray-500 mb-1">Room</p>
+                <p class="font-bold text-black text-sm">Room {{ patient.room }}</p>
+            </div>
+        </div>
     </div>
 
-    <div class="space-y-6 text-gray-800 leading-relaxed">
+    <div class="space-y-6 text-black text-sm leading-relaxed">
         
-        <div><h3 class="font-bold text-lg text-blue-800 border-b pb-1 mb-2">1. Chief Complaint</h3>
-            <p class="pl-4">{{ form.cc|default("Acute fever and headache", true) }}</p></div>
+        <div class="page-break-avoid">
+            <h3 class="font-bold uppercase tracking-wider border-b border-gray-300 mb-2 pb-1">1. Chief Complaint (CC)</h3>
+            <p class="pl-4">{{ patient.cc|default("N/A", true) }}</p>
+        </div>
 
-        <div><h3 class="font-bold text-lg text-blue-800 border-b pb-1 mb-2">2. History of Present Illness</h3>
-            <p class="pl-4">{{ form.hpi|default("Patient reports onset of high fever and severe headache starting 48 hours ago.", true) }}</p></div>
+        <div class="page-break-avoid">
+            <h3 class="font-bold uppercase tracking-wider border-b border-gray-300 mb-2 pb-1">2. History of Present Illness (HPI)</h3>
+            <p class="pl-4 whitespace-pre-wrap">{{ patient.hpi|default("N/A", true) }}</p>
+        </div>
 
-        <div><h3 class="font-bold text-lg text-blue-800 border-b pb-1 mb-2">3. Past Medical History</h3>
-            <p class="pl-4">{{ form.pmh|default("N/A", true) }}</p></div>
+        <div class="page-break-avoid">
+            <h3 class="font-bold uppercase tracking-wider border-b border-gray-300 mb-2 pb-1">3. Past Medical History</h3>
+            <p class="pl-4">{{ patient.pmh|default("N/A", true) }}</p>
+        </div>
 
-        <div><h3 class="font-bold text-lg text-blue-800 border-b pb-1 mb-2">4. Medication History</h3>
-            <p class="pl-4">{{ form.meds|default("N/A", true) }}</p></div>
+        <div class="page-break-avoid">
+            <h3 class="font-bold uppercase tracking-wider border-b border-gray-300 mb-2 pb-1">4. Medication History</h3>
+            <p class="pl-4">{{ patient.meds|default("N/A", true) }}</p>
+        </div>
 
-        <div><h3 class="font-bold text-lg text-blue-800 border-b pb-1 mb-2">5. Allergies</h3>
-            <p class="pl-4">{{ form.allergies|default("None reported", true) }}</p></div>
+        <div class="page-break-avoid">
+            <h3 class="font-bold uppercase tracking-wider border-b border-gray-300 mb-2 pb-1">5. Allergies</h3>
+            <p class="pl-4 uppercase font-semibold {% if patient.allergies and patient.allergies.lower() != 'none reported' %}text-black{% else %}text-gray-600{% endif %}">{{ patient.allergies|default("None reported", true) }}</p>
+        </div>
 
-        <div><h3 class="font-bold text-lg text-blue-800 border-b pb-1 mb-2">6. Social History</h3>
-            <ul class="pl-8 list-disc">
-                <li>Smoking: {% if form.sh_smoke %}Yes{% else %}No{% endif %}</li>
-                <li>Alcohol: {% if form.sh_alcohol %}Yes{% else %}No{% endif %}</li>
-                <li>Living Condition: {{ form.sh_living|default("Unknown", true) }}</li>
-                {% if form.sh_others %}<li>Notes: {{ form.sh_others }}</li>{% endif %}
+        <div class="page-break-avoid">
+            <h3 class="font-bold uppercase tracking-wider border-b border-gray-300 mb-2 pb-1">6. Social History</h3>
+            <ul class="pl-8 list-none space-y-1">
+                <li><span class="font-bold inline-block w-32">Smoking:</span> {% if patient.sh_smoke %}Yes{% else %}No{% endif %}</li>
+                <li><span class="font-bold inline-block w-32">Alcohol:</span> {% if patient.sh_alcohol %}Yes{% else %}No{% endif %}</li>
+                <li><span class="font-bold inline-block w-32">Living Condition:</span> 
+                    {% if patient.sh_living == 'alone' %}Live alone
+                    {% elif patient.sh_living == '1-2' %}Live with 1-2 people
+                    {% elif patient.sh_living == '>2' %}Live with >2 people
+                    {% else %}Not specified{% endif %}
+                </li>
+                {% if patient.sh_others %}
+                <li class="mt-2"><span class="font-bold inline-block w-32">Other Notes:</span> {{ patient.sh_others }}</li>
+                {% endif %}
             </ul>
         </div>
 
-        <div><h3 class="font-bold text-lg text-blue-800 border-b pb-1 mb-2">7. Vital Signs</h3>
+        <div class="page-break-avoid">
+            <h3 class="font-bold uppercase tracking-wider border-b border-gray-300 mb-2 pb-1">7. Vital Signs</h3>
             <div class="pl-4 grid grid-cols-4 gap-4 max-w-lg">
-                <p><span class="font-bold text-gray-500">Temp:</span> {{ patient.temp }}</p>
-                <p><span class="font-bold text-gray-500">HR:</span> {{ patient.hr }}</p>
-                <p><span class="font-bold text-gray-500">RR:</span> {{ patient.rr }}</p>
-                <p><span class="font-bold text-gray-500">BP:</span> {{ patient.bp }}</p>
+                <div class="flex justify-between border-b border-dotted border-gray-400 pb-1"><span class="font-bold">Temp:</span> <span>{{ patient.temp }}</span></div>
+                <div class="flex justify-between border-b border-dotted border-gray-400 pb-1"><span class="font-bold">HR:</span> <span>{{ patient.hr }}</span></div>
+                <div class="flex justify-between border-b border-dotted border-gray-400 pb-1"><span class="font-bold">RR:</span> <span>{{ patient.rr }}</span></div>
+                <div class="flex justify-between border-b border-dotted border-gray-400 pb-1"><span class="font-bold">BP:</span> <span>{{ patient.bp }}</span></div>
             </div>
         </div>
     </div>
     
-    <div class="mt-16 pt-8 border-t flex justify-end">
+    <div class="mt-16 pt-8 flex justify-between items-end page-break-avoid">
+        <div class="text-left text-xs text-gray-500">
+            <p>Document generated electronically via E.M.M.A.S</p>
+            <p>Report ID: EM-{{ patient.date_added.strftime('%Y%m%d') }}-{{ patient.id }}</p>
+        </div>
         <div class="text-center w-64">
-            <div class="border-b border-gray-400 mb-2 h-10 italic text-blue-900 signature-font">{{ doctor.name }}</div>
-            <p class="text-xs text-gray-500 font-bold uppercase">Digitally Signed By</p>
-            <p class="text-xs text-gray-400">{{ doctor.email }}</p>
+            <div class="border-b border-black mb-2 h-16 flex items-end justify-center italic font-serif text-xl">{{ doctor.name }}</div>
+            <p class="text-xs font-bold uppercase tracking-widest text-black">Attending Physician</p>
+            <p class="text-xs text-gray-600 mt-1">{{ doctor.email }}</p>
         </div>
     </div>
 </div>
 
-<div class="fixed bottom-8 right-8 flex space-x-3 print:hidden">
+<div class="fixed bottom-8 right-8 flex space-x-3 print-hidden z-50">
     <a href="/doctor/dashboard" class="bg-gray-800 hover:bg-gray-900 text-white shadow-xl px-6 py-3 rounded-full font-bold transition">Return to Dashboard</a>
-    <button onclick="window.print()" class="bg-blue-600 hover:bg-blue-700 text-white shadow-xl px-6 py-3 rounded-full font-bold transition"><i class="fas fa-print mr-2"></i>Print / Save PDF</button>
+    <button onclick="window.print()" class="bg-blue-600 hover:bg-blue-700 text-white shadow-xl px-6 py-3 rounded-full font-bold transition flex items-center"><i class="fas fa-print mr-2"></i> Print / Save PDF</button>
 </div>
 {% endblock %}
