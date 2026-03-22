@@ -1,4 +1,5 @@
 import os
+import json # Added for structured data collection
 from datetime import datetime
 from flask import Flask, render_template, request, redirect, url_for, flash, session
 from flask_sqlalchemy import SQLAlchemy
@@ -50,12 +51,54 @@ class Patient(db.Model):
     sh_living = db.Column(db.String(50), default="")
     sh_others = db.Column(db.String(255), default="")
 
+# --- DATA COLLECTION HELPER ---
+def save_patient_data_to_folder(patient):
+    """Saves patient information into a structured folder hierarchy: 
+       patient_records/YYYY/MM-Month/YYYY-MM-DD/IC_Time.json"""
+    base_dir = "patient_records"
+    now = datetime.now()
+    
+    # Organize by Date
+    year = now.strftime("%Y")
+    month = now.strftime("%m-%B")
+    day = now.strftime("%Y-%m-%d")
+    
+    target_dir = os.path.join(base_dir, year, month, day)
+    os.makedirs(target_dir, exist_ok=True)
+    
+    # Unique filename
+    timestamp = now.strftime("%H%M%S")
+    filename = f"{patient.ic}_{timestamp}.json"
+    file_path = os.path.join(target_dir, filename)
+    
+    # Structured Data
+    archive_data = {
+        "metadata": {"timestamp": now.strftime("%Y-%m-%d %H:%M:%S"), "room": patient.room},
+        "patient": {"name": patient.name, "ic": patient.ic, "age": patient.age},
+        "vitals": {"bp": patient.bp, "hr": patient.hr, "temp": patient.temp, "rr": patient.rr},
+        "clinical_notes": {
+            "cc": patient.cc, "hpi": patient.hpi, "pmh": patient.pmh, 
+            "meds": patient.meds, "allergies": patient.allergies,
+            "social": {"smoke": patient.sh_smoke, "alcohol": patient.sh_alcohol, "living": patient.sh_living}
+        },
+        "raw_transcription": patient.transcription
+    }
+    
+    with open(file_path, 'w') as f:
+        json.dump(archive_data, f, indent=4)
+
 def get_rooms_data():
     rooms = []
     for i in range(1, 6):
         room_num_str = str(i)
         doc = User.query.filter_by(role='doctor', room=room_num_str).first()
-        patients_query = Patient.query.filter(Patient.room==room_num_str, Patient.status.in_(['Waiting', 'Draft'])).order_by(Patient.priority.desc(), Patient.id.asc()).all()
+        
+        # Exclude the test patient (IC: 999999-99-9999) from nurse dashboard
+        patients_query = Patient.query.filter(
+            Patient.room == room_num_str, 
+            Patient.status.in_(['Waiting', 'Draft']),
+            Patient.ic != '999999-99-9999' # Filter out mock data
+        ).order_by(Patient.priority.desc(), Patient.id.asc()).all()
         
         patient_list = [{
             "id": p.id, "name": p.name, "ic": p.ic, "symptoms": p.symptoms, 
@@ -132,10 +175,8 @@ def doctor_dashboard():
     if 'user_id' not in session: return redirect(url_for('login'))
     doctor = User.query.get(session['user_id'])
     
-    # Queue includes Waiting, Consulting (if accidentally stuck), and Draft patients
     queue = Patient.query.filter(Patient.room==doctor.room, Patient.status.in_(['Waiting', 'Consulting', 'Draft'])).order_by(Patient.priority.desc(), Patient.id.asc()).all()
     
-    # Completed Today Logic
     today_str = datetime.now().strftime('%Y-%m-%d')
     all_completed = Patient.query.filter_by(room=doctor.room, status='Completed').order_by(Patient.id.desc()).all()
     completed_today = [p for p in all_completed if p.date_added.strftime('%Y-%m-%d') == today_str]
@@ -160,7 +201,6 @@ def live_consultation(patient_id):
 
 @app.route('/doctor/cancel_live/<int:patient_id>')
 def cancel_live(patient_id):
-    # If doctor quits live session, revert to Waiting
     patient = Patient.query.get_or_404(patient_id)
     patient.status = 'Waiting'
     db.session.commit()
@@ -182,7 +222,6 @@ def consultation_summary(patient_id):
 @app.route('/doctor/save_draft/<int:patient_id>', methods=['POST'])
 def save_draft(patient_id):
     patient = Patient.query.get_or_404(patient_id)
-    # Save all form data to database as a draft
     patient.transcription = request.form.get('transcription', '')
     patient.cc = request.form.get('cc', '')
     patient.hpi = request.form.get('hpi', '')
@@ -200,7 +239,6 @@ def save_draft(patient_id):
 @app.route('/doctor/generate_report/<int:patient_id>', methods=['POST'])
 def generate_report(patient_id):
     patient = Patient.query.get_or_404(patient_id)
-    # Save final form data
     patient.cc = request.form.get('cc', '')
     patient.hpi = request.form.get('hpi', '')
     patient.pmh = request.form.get('pmh', '')
@@ -210,6 +248,10 @@ def generate_report(patient_id):
     patient.sh_alcohol = True if request.form.get('sh_alcohol') else False
     patient.sh_living = request.form.get('sh_living', '')
     patient.sh_others = request.form.get('sh_others', '')
+    
+    # Trigger Folder-based Data Collection
+    save_patient_data_to_folder(patient)
+    
     patient.status = 'Completed'
     db.session.commit()
     return redirect(url_for('final_medical_note', patient_id=patient.id))
@@ -239,41 +281,11 @@ if __name__ == '__main__':
         if not User.query.filter_by(email='doctor@test.com').first():
             db.session.add(User(name="Dr. Lim", email='doctor@test.com', password_hash=generate_password_hash('doctor123'), role='doctor', status='online', room='1'))
 
-# ---------------------------------- CREATE TEST PATIENT --------------------------#
-        # Checks if the test patient already exists by IC so it doesn't create duplicates
-# --- SEED TEST PATIENT ---
         test_patient = Patient.query.filter_by(ic='999999-99-9999').first()
-        
         if not test_patient:
-            # Create the test patient if they don't exist at all
-            test_patient = Patient(
-                name="Auto Test Patient",
-                ic="999999-99-9999",
-                age="25",
-                room="1",  
-                symptoms="Automated test patient for development."<br>"Experiencing mild headache and fatigue.",
-                priority=False,
-                status='Waiting',
-                bp="120/80",
-                hr="72",
-                temp="37.2",
-                rr="18"
-            )
+            test_patient = Patient(name="Auto Test Patient", ic="999999-99-9999", age="25", room="1", symptoms="Mock Test", status='Waiting')
             db.session.add(test_patient)
         else:
-            # If they DO exist, reset them back to a fresh "Waiting" state for new testing
             test_patient.status = 'Waiting'
-            test_patient.room = '1'
-            test_patient.transcription = ""
-            test_patient.cc = ""
-            test_patient.hpi = ""
-            test_patient.pmh = ""
-            test_patient.meds = ""
-            test_patient.allergies = ""
-            test_patient.sh_others = ""
-            
-        db.session.commit()
-        # -------------------------
-        
         db.session.commit()
     app.run(host='0.0.0.0', port=5000, debug=True)
