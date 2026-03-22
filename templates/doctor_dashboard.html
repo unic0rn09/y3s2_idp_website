@@ -2,100 +2,108 @@
 
 {% block content %}
 <div class="mb-8">
-    <h2 class="text-lg font-bold text-gray-800 mb-4 flex items-center"><i class="fas fa-users text-blue-600 mr-2"></i> Patient Queue</h2>
+    <div class="flex justify-between items-end mb-4 border-b border-gray-200 pb-2">
+        <h2 class="text-base font-bold text-gray-800 uppercase tracking-wide flex items-center"><i class="fas fa-users text-blue-600 mr-2"></i> Patient Queue ({{ queue|length }})</h2>
+    </div>
     
     {% if not queue %}
-    <div class="bg-white rounded-xl border border-gray-100 p-10 text-center shadow-sm">
-        <div class="w-16 h-16 bg-blue-50 text-blue-400 rounded-full flex items-center justify-center mx-auto mb-3"><i class="fas fa-mug-hot text-2xl"></i></div>
-        <h3 class="font-bold text-gray-700 text-lg">No patients waiting</h3>
-        <p class="text-gray-500 text-sm">You're all caught up for now!</p>
+    <div class="bg-white rounded-lg border border-gray-100 p-8 text-center shadow-sm">
+        <div class="w-12 h-12 bg-gray-50 text-gray-300 rounded-full flex items-center justify-center mx-auto mb-2"><i class="fas fa-coffee text-xl"></i></div>
+        <h3 class="font-bold text-gray-600 text-base">Queue is Empty</h3>
+        <p class="text-gray-400 text-xs mt-1">You're all caught up. Waiting for triage...</p>
     </div>
     {% endif %}
 
-    <div class="space-y-4">
+    <div class="space-y-3">
         {% for p in queue %}
-        <div class="bg-white border {% if p.priority %}border-red-200 shadow-md{% else %}border-gray-200 shadow-sm{% endif %} rounded-xl p-5 relative overflow-hidden">
-            {% if p.priority %}<div class="absolute top-0 right-0 bg-red-500 text-white text-[10px] font-bold px-3 py-1 rounded-bl-lg uppercase tracking-wide">Priority Patient</div>{% endif %}
+        <div class="bg-white border {% if p.priority %}border-red-200 shadow-md ring-1 ring-red-100{% else %}border-gray-200 shadow-sm hover:border-blue-200{% endif %} rounded-lg p-3.5 relative flex flex-col lg:flex-row transition-all duration-200 group">
             
-            <div class="flex flex-col md:flex-row justify-between md:items-center">
-                <div class="mb-4 md:mb-0">
-                    <h3 class="text-xl font-bold text-gray-800 mb-1">{{ p.name }}</h3>
-                    <p class="text-sm text-gray-500 mb-2">IC: {{ p.ic }} • Age: {{ p.age }}</p>
-                    <div class="bg-gray-50 p-3 rounded-lg border border-gray-100 mt-3 max-w-lg">
-                        <span class="font-semibold text-gray-700 text-sm">Symptoms:</span>
-                        <p class="text-sm text-gray-600">{{ p.symptoms }}</p>
+            {% if p.priority %}<div class="absolute top-0 right-0 bg-red-500 text-white text-[9px] font-bold px-2.5 py-0.5 rounded-bl-lg uppercase tracking-wider shadow-sm z-10">Priority</div>{% endif %}
+            
+            <div class="lg:w-3/5 flex flex-col justify-center pr-4 border-b lg:border-b-0 lg:border-r border-gray-100 mb-3 lg:mb-0 pb-3 lg:pb-0">
+                <div class="flex justify-between items-start">
+                    <div>
+                        <h3 class="text-base font-bold text-gray-900 leading-tight group-hover:text-blue-700 transition-colors">{{ p.name }}</h3>
+                        <p class="text-[11px] font-medium text-gray-500 mt-0.5 uppercase tracking-wide">IC: {{ p.ic }} &nbsp;•&nbsp; {{ p.age }} Yrs</p>
                     </div>
                 </div>
+                <div class="mt-2 bg-gray-50/80 p-2 rounded-md border border-gray-100/50">
+                    <p class="text-xs text-gray-600 leading-snug line-clamp-2" title="{{ p.symptoms }}"><span class="font-bold text-gray-700 mr-1">CC:</span>{{ p.symptoms }}</p>
+                </div>
+            </div>
 
-                <div class="flex flex-col md:items-end space-y-4">
-                    <div class="flex space-x-3">
-                        <div class="text-center bg-blue-50 border border-blue-100 rounded-lg p-2 w-20">
-                            <p class="text-[10px] text-gray-500 font-bold uppercase mb-1"><i class="fas fa-thermometer-half text-red-500 mr-1"></i>Temp</p><p class="text-lg font-bold text-gray-800">{{ p.temp }}</p>
-                        </div>
-                        <div class="text-center bg-blue-50 border border-blue-100 rounded-lg p-2 w-20">
-                            <p class="text-[10px] text-gray-500 font-bold uppercase mb-1"><i class="fas fa-heartbeat text-red-500 mr-1"></i>HR</p><p class="text-lg font-bold text-gray-800">{{ p.hr }}</p>
-                        </div>
-                        <div class="text-center bg-blue-50 border border-blue-100 rounded-lg p-2 w-20">
-                            <p class="text-[10px] text-gray-500 font-bold uppercase mb-1"><i class="fas fa-lungs text-blue-500 mr-1"></i>RR</p><p class="text-lg font-bold text-gray-800">{{ p.rr }}</p>
-                        </div>
-                        <div class="text-center bg-blue-50 border border-blue-100 rounded-lg p-2 w-20">
-                            <p class="text-[10px] text-gray-500 font-bold uppercase mb-1"><i class="fas fa-tint text-blue-600 mr-1"></i>BP</p><p class="text-lg font-bold text-gray-800">{{ p.bp }}</p>
-                        </div>
+            <div class="lg:w-2/5 flex flex-col justify-between pl-0 lg:pl-4">
+                <div class="grid grid-cols-4 gap-1.5 mb-2.5">
+                    <div class="text-center bg-blue-50/50 rounded flex flex-col justify-center py-1">
+                        <p class="text-[12px] text-gray-500 font-bold uppercase"><i class="fas fa-thermometer-half text-red-400 mr-1"></i>T</p>
+                        <p class="text-xs font-bold text-gray-800">{{ p.temp }}</p>
                     </div>
-                    
-                    {% if p.status == 'Draft' %}
-                    <div class="flex flex-col items-end space-y-2 mt-2 w-full">
-                        <button disabled class="bg-blue-300 text-white font-bold py-2.5 px-8 rounded-lg shadow-sm w-full cursor-not-allowed">On-going</button>
-                        <a href="/doctor/summary/{{ p.id }}" class="text-blue-600 hover:text-blue-800 font-bold text-sm underline text-center w-full block">Continue Editing</a>
+                    <div class="text-center bg-blue-50/50 rounded flex flex-col justify-center py-1">
+                        <p class="text-[12px] text-gray-500 font-bold uppercase"><i class="fas fa-heartbeat text-red-400 mr-1"></i>HR</p>
+                        <p class="text-xs font-bold text-gray-800">{{ p.hr }}</p>
                     </div>
-                    {% else %}
-                    <a href="/doctor/consult/{{ p.id }}" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 px-8 rounded-lg shadow-md transition transform hover:scale-105 w-full text-center">
-                        <i class="fas fa-stethoscope mr-2"></i> Consult
-                    </a>
-                    {% endif %}
+                    <div class="text-center bg-blue-50/50 rounded flex flex-col justify-center py-1">
+                        <p class="text-[12px] text-gray-500 font-bold uppercase"><i class="fas fa-lungs text-blue-400 mr-1"></i>RR</p>
+                        <p class="text-xs font-bold text-gray-800">{{ p.rr }}</p>
+                    </div>
+                    <div class="text-center bg-blue-50/50 rounded flex flex-col justify-center py-1">
+                        <p class="text-[12px] text-gray-500 font-bold uppercase"><i class="fas fa-tint text-blue-500 mr-1"></i>BP</p>
+                        <p class="text-xs font-bold text-gray-800">{{ p.bp }}</p>
+                    </div>
                 </div>
+                
+                {% if p.status == 'Draft' %}
+                <div class="flex space-x-2 h-8">
+                    <button disabled class="bg-yellow-50 text-yellow-600 border border-yellow-200 font-bold rounded text-xs w-1/3 cursor-not-allowed">Draft</button>
+                    <a href="/doctor/summary/{{ p.id }}" class="bg-white border border-blue-600 text-blue-600 hover:bg-blue-50 font-bold rounded text-xs flex-1 flex items-center justify-center transition">Continue Note</a>
+                </div>
+                {% else %}
+                <a href="/doctor/consult/{{ p.id }}" class="bg-blue-600 hover:bg-blue-700 text-white font-bold h-8 rounded shadow-sm transition transform hover:-translate-y-px w-full text-xs flex items-center justify-center">
+                    <i class="fas fa-stethoscope mr-1.5"></i> Begin Consult
+                </a>
+                {% endif %}
             </div>
         </div>
         {% endfor %}
     </div>
 </div>
 
-<div class="mt-10 mb-10">
-    <div class="flex justify-between items-center mb-4">
-        <h2 class="text-lg font-bold text-gray-800 flex items-center"><i class="fas fa-check-circle text-green-500 mr-2"></i> Completed Today</h2>
-        <a href="/doctor/history" class="text-sm font-bold text-blue-600 hover:text-blue-800 transition"><i class="fas fa-history mr-1"></i> Past History</a>
+<div class="mt-8 mb-10">
+    <div class="flex justify-between items-end mb-3 border-b border-gray-200 pb-2">
+        <h2 class="text-sm font-bold text-gray-600 uppercase tracking-wide flex items-center"><i class="fas fa-check-circle text-green-500 mr-2"></i> Completed Today ({{ completed_today|length }})</h2>
+        <a href="/doctor/history" class="text-xs font-bold text-blue-600 hover:text-blue-800 transition uppercase tracking-wide">Past Records &rarr;</a>
     </div>
     
-    <div class="bg-white border rounded-xl shadow-sm overflow-hidden">
-        <table class="w-full text-left text-sm">
-            <thead class="bg-gray-50 text-gray-500 text-xs uppercase border-b">
+    <div class="bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden">
+        <table class="w-full text-left text-xs">
+            <thead class="bg-gray-50 text-gray-500 uppercase font-semibold border-b">
                 <tr>
-                    <th class="py-3 px-5">Time</th>
-                    <th class="py-3 px-5">Patient Name</th>
-                    <th class="py-3 px-5">Symptoms</th>
-                    <th class="py-3 px-5 text-right">Action</th>
+                    <th class="py-2.5 px-4 w-24">Time</th>
+                    <th class="py-2.5 px-4 w-48">Patient</th>
+                    <th class="py-2.5 px-4">Chief Complaint</th>
+                    <th class="py-2.5 px-4 text-right w-24">Report</th>
                 </tr>
             </thead>
             <tbody class="divide-y divide-gray-100">
                 {% for p in completed_today %}
-                <tr class="hover:bg-gray-50 transition {% if loop.index > 3 %}hidden extra-row{% endif %}">
-                    <td class="py-3 px-5 text-gray-500">{{ p.date_added.strftime('%H:%M') }}</td>
-                    <td class="py-3 px-5 font-semibold text-gray-800">{{ p.name }}</td>
-                    <td class="py-3 px-5 text-gray-600 truncate max-w-xs">{{ p.symptoms }}</td>
-                    <td class="py-3 px-5 text-right">
-                        <a href="/doctor/report/{{ p.id }}" class="text-blue-600 font-medium hover:underline text-xs">View Report</a>
+                <tr class="hover:bg-blue-50/30 transition {% if loop.index > 3 %}hidden extra-row{% endif %}">
+                    <td class="py-2.5 px-4 text-gray-500 font-medium">{{ p.date_added.strftime('%H:%M') }}</td>
+                    <td class="py-2.5 px-4 font-bold text-gray-800">{{ p.name }}</td>
+                    <td class="py-2.5 px-4 text-gray-600 truncate max-w-[200px]">{{ p.symptoms }}</td>
+                    <td class="py-2.5 px-4 text-right">
+                        <a href="/doctor/report/{{ p.id }}" class="text-blue-600 font-bold hover:underline">View</a>
                     </td>
                 </tr>
                 {% endfor %}
                 {% if not completed_today %}
-                <tr><td colspan="4" class="py-6 text-center text-gray-500">No consultations completed today.</td></tr>
+                <tr><td colspan="4" class="py-6 text-center text-gray-400 font-medium">No completions logged today.</td></tr>
                 {% endif %}
             </tbody>
         </table>
         
         {% if completed_today|length > 3 %}
-        <div class="p-3 bg-gray-50 border-t text-center">
-            <button onclick="toggleRows()" id="viewMoreBtn" class="text-blue-600 font-bold text-sm hover:underline">View More ({{ completed_today|length - 3 }} hidden)</button>
+        <div class="p-2 bg-gray-50 border-t border-gray-100 text-center">
+            <button onclick="toggleRows()" id="viewMoreBtn" class="text-gray-500 font-bold text-xs hover:text-blue-600 transition">Show More ({{ completed_today|length - 3 }} hidden)</button>
         </div>
         {% endif %}
     </div>
@@ -115,8 +123,8 @@
             else r.classList.add('hidden');
         });
         
-        if (rowsExpanded) btn.innerText = "View Less";
-        else btn.innerText = "View More ({{ completed_today|length - 3 }} hidden)";
+        if (rowsExpanded) btn.innerText = "Show Less";
+        else btn.innerText = "Show More ({{ completed_today|length - 3 }} hidden)";
     }
 </script>
 {% endblock %}
