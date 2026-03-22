@@ -46,19 +46,19 @@
             <div class="lg:w-[38%] flex flex-col justify-between pl-0 lg:pl-5">
                 <div class="grid grid-cols-4 gap-2 mb-3">
                     <div class="text-center bg-slate-50 border border-slate-100 rounded flex flex-col justify-center py-1.5">
-                        <p class="text-[9px] text-slate-400 font-bold uppercase tracking-wider mb-0.5">Temp</p>
+                        <p class="text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-0.5">Temp</p>
                         <p class="text-sm font-bold text-slate-800 font-mono">{{ p.temp }}</p>
                     </div>
                     <div class="text-center bg-slate-50 border border-slate-100 rounded flex flex-col justify-center py-1.5">
-                        <p class="text-[9px] text-slate-400 font-bold uppercase tracking-wider mb-0.5">HR</p>
+                        <p class="text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-0.5">HR</p>
                         <p class="text-sm font-bold text-slate-800 font-mono">{{ p.hr }}</p>
                     </div>
                     <div class="text-center bg-slate-50 border border-slate-100 rounded flex flex-col justify-center py-1.5">
-                        <p class="text-[9px] text-slate-400 font-bold uppercase tracking-wider mb-0.5">RR</p>
+                        <p class="text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-0.5">RR</p>
                         <p class="text-sm font-bold text-slate-800 font-mono">{{ p.rr }}</p>
                     </div>
                     <div class="text-center bg-slate-50 border border-slate-100 rounded flex flex-col justify-center py-1.5">
-                        <p class="text-[9px] text-slate-400 font-bold uppercase tracking-wider mb-0.5">BP</p>
+                        <p class="text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-0.5">BP</p>
                         <p class="text-sm font-bold text-slate-800 font-mono">{{ p.bp }}</p>
                     </div>
                 </div>
@@ -69,7 +69,7 @@
                         <i class="fas fa-file-signature mr-1.5"></i> Draft
                     </div>
                     <a href="/doctor/summary/{{ p.id }}" class="bg-white border border-blue-700 text-blue-700 hover:bg-blue-50 font-bold rounded text-sm flex-1 flex items-center justify-center transition shadow-sm">
-                        Resume Charting
+                        Resume Clinical Note
                     </a>
                 </div>
                 {% else %}
@@ -89,7 +89,7 @@
             <i class="fas fa-check-circle text-emerald-600 mr-2"></i> Completed Today ({{ completed_today|length }})
         </h2>
         <a href="/doctor/history" class="text-xs font-bold text-blue-700 hover:text-blue-900 transition uppercase tracking-wider flex items-center">
-            View Archives <i class="fas fa-chevron-right ml-1 text-[10px]"></i>
+            View Consultation History <i class="fas fa-chevron-right ml-1 text-[9px]"></i>
         </a>
     </div>
     
@@ -146,7 +146,7 @@
             else r.classList.add('hidden');
         });
         
-        if (rowsExpanded) btn.innerText = "COLLAPSE LIST";
+        if (rowsExpanded) btn.innerText = "HIDE LIST";
         else btn.innerText = `SHOW MORE ({{ completed_today|length - 3 }})`;
     }
 </script>
