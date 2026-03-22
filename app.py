@@ -332,6 +332,23 @@ def mock_consultation():
     if 'user_id' not in session: return redirect(url_for('login'))
     return render_template('mock_consultation.html', doctor=User.query.get(session['user_id']))
 
+
+
+#-------help and feedback route------------
+@app.route('/help_feedback')
+def help_feedback():
+    return render_template('help_feedback.html')
+
+@app.route('/submit_feedback', methods=['POST'])
+def submit_feedback():
+    topic = request.form.get('topic')
+    message = request.form.get('message')
+    
+    # Send a flash message back to the user to confirm success
+    flash("Thank you! Your feedback has been sent to the development team.", "success")
+    return redirect(url_for('help_feedback'))
+#--------------------------------------------
+
 if __name__ == '__main__':
     with app.app_context():
         db.create_all()

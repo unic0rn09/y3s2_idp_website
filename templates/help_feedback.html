@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Support & Feedback - E.M.M.A.S</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body class="bg-gray-50 flex flex-col min-h-screen text-gray-800 font-sans">
+
+    <header class="bg-white border-b p-4 md:px-8 md:py-5 flex justify-between items-center shadow-sm">
+        <div class="flex items-center space-x-3">
+            <div class="bg-blue-600 text-white p-2 rounded-lg font-bold shadow-md">IDP</div>
+            <div class="font-bold text-xl leading-tight">E.M.M.A.S<br><span class="text-xs text-gray-400 font-normal">Support Center</span></div>
+        </div>
+        <button onclick="window.close()" class="text-sm font-bold text-gray-500 hover:text-gray-800 transition"><i class="fas fa-times mr-1"></i> Close Window</button>
+    </header>
+
+    <main class="flex-1 flex items-center justify-center p-6">
+        <div class="bg-white rounded-xl shadow-lg border border-gray-100 w-full max-w-lg p-8 relative overflow-hidden">
+            
+            <div class="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-blue-500 to-blue-700"></div>
+
+            <div class="text-center mb-8">
+                <div class="w-16 h-16 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-4 border border-blue-100 shadow-sm">
+                    <i class="fas fa-headset text-2xl"></i>
+                </div>
+                <h2 class="font-bold text-2xl text-gray-800 tracking-tight">How can we help?</h2>
+                <p class="text-sm text-gray-500 mt-2">Encountering an issue or have a suggestion for the E.M.M.A.S system? Send a direct message to the developers.</p>
+            </div>
+
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                        <div class="mb-6 p-4 rounded-lg bg-green-50 border border-green-200 text-green-700 text-sm text-center flex items-center justify-center font-medium shadow-sm">
+                            <i class="fas fa-check-circle mr-2"></i> {{ message }}
+                        </div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+
+            <form action="/submit_feedback" method="POST" class="space-y-5">
+                <div>
+                    <label class="block text-[11px] font-bold text-gray-600 uppercase tracking-wider mb-1.5">Inquiry Type</label>
+                    <select name="topic" class="w-full border rounded-lg p-3 text-sm bg-gray-50 outline-none focus:ring-2 focus:ring-blue-500 border-gray-200 text-gray-700 cursor-pointer transition">
+                        <option value="bug">Report a Bug / Glitch</option>
+                        <option value="feature">Request a New Feature</option>
+                        <option value="other">General Inquiry</option>
+                        <option value="other">Others...</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-[11px] font-bold text-gray-600 uppercase tracking-wider mb-1.5">Message</label>
+                    <textarea name="message" rows="5" required class="w-full border rounded-lg p-3 text-sm bg-gray-50 outline-none focus:ring-2 focus:ring-blue-500 border-gray-200 resize-none text-gray-700 transition" placeholder="Please describe your issue or suggestion in detail..."></textarea>
+                </div>
+                <div class="pt-2">
+                    <button type="submit" class="w-full py-3 bg-blue-600 text-white rounded-lg text-sm font-bold hover:bg-blue-700 transition shadow-md flex justify-center items-center">
+                        <i class="fas fa-paper-plane mr-2"></i> Send Feedback
+                    </button>
+                </div>
+            </form>
+            
+        </div>
+    </main>
+
+    <footer class="text-center p-6 text-xs text-gray-400">
+        &copy; 2026 E.M.M.A.S Development Team. All rights reserved.
+    </footer>
+</body>
+</html>

@@ -6,94 +6,67 @@
     <title>E.M.M.A.S Nurse Portal</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-    <style>
-        ::-webkit-scrollbar { width: 6px; }
-        ::-webkit-scrollbar-track { background: #f1f1f1; }
-        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
-        @keyframes slideDown {
-            from { opacity: 0; transform: translate(-50%, -20px); }
-            to { opacity: 1; transform: translate(-50%, 0); }
-        }
-        .animate-toast { animation: slideDown 0.4s ease-out forwards; }
-    </style>
 </head>
-<body class="bg-gray-50 flex h-screen overflow-hidden text-sm md:text-base">
+<body class="bg-gray-50 flex h-screen text-gray-800 font-sans">
 
-    <div id="toast-container" class="fixed top-6 left-1/2 transform -translate-x-1/2 z-[100] flex flex-col items-center space-y-3 pointer-events-none">
-        {% with messages = get_flashed_messages(with_categories=true) %}
-            {% if messages %}
-                {% for category, message in messages %}
-                    <div class="animate-toast pointer-events-auto flex items-center shadow-lg rounded-xl px-6 py-3 min-w-[350px]
-                        {% if category == 'error' %}bg-red-600 text-white{% else %}bg-green-600 text-white{% endif %}">
-                        <i class="fas {% if category == 'error' %}fa-exclamation-triangle{% else %}fa-check-circle{% endif %} text-lg mr-3"></i>
-                        <span class="font-medium flex-1">{{ message }}</span>
-                        <button onclick="this.parentElement.remove()" class="ml-4 hover:opacity-75 focus:outline-none">
-                            <i class="fas fa-times"></i>
-                        </button>
-                    </div>
-                {% endfor %}
-            {% endif %}
-        {% endwith %}
-    </div>
-
-    <aside class="w-64 bg-white border-r border-gray-200 flex flex-col justify-between hidden md:flex">
+    <aside class="w-64 bg-white border-r border-gray-200 flex flex-col justify-between flex-shrink-0 relative z-20 shadow-sm hidden md:flex">
         <div>
-            <div class="p-6 flex items-center space-x-3">
-                <div class="bg-blue-600 text-white p-2 rounded-lg font-bold">EM</div>
-                <div class="font-bold text-lg text-gray-800">E.M.M.A.S<br><span class="text-xs text-gray-400 font-normal">Nurse Portal</span></div>
+            <div class="p-6 pb-4">
+                <div class="flex items-center space-x-3 mb-6">
+                    <div class="bg-blue-600 text-white p-2 rounded-lg font-bold shadow-md">IDP</div>
+                    <div class="font-bold text-xl leading-tight">E.M.M.A.S<br><span class="text-xs text-gray-400 font-normal">Nurse Portal</span></div>
+                </div>
+                
+                <nav class="space-y-1.5">
+                    <a href="/nurse/dashboard" class="flex items-center space-x-3 px-3 py-2.5 rounded-lg text-sm font-medium {% if request.path == '/nurse/dashboard' %}bg-blue-50 text-blue-600{% else %}text-gray-600 hover:bg-gray-50{% endif %} transition">
+                        <i class="fas fa-th-large w-5 text-center"></i><span>Dashboard</span>
+                    </a>
+                    <a href="/nurse/registration" class="flex items-center space-x-3 px-3 py-2.5 rounded-lg text-sm font-medium {% if request.path == '/nurse/registration' %}bg-blue-50 text-blue-600{% else %}text-gray-600 hover:bg-gray-50{% endif %} transition">
+                        <i class="fas fa-user-plus w-5 text-center"></i><span>Registration</span>
+                    </a>
+                    <a href="/nurse/rooms" class="flex items-center space-x-3 px-3 py-2.5 rounded-lg text-sm font-medium {% if request.path == '/nurse/rooms' %}bg-blue-50 text-blue-600{% else %}text-gray-600 hover:bg-gray-50{% endif %} transition">
+                        <i class="fas fa-door-open w-5 text-center"></i><span>All Rooms</span>
+                    </a>
+                    <a href="/nurse/history" class="flex items-center space-x-3 px-3 py-2.5 rounded-lg text-sm font-medium {% if request.path == '/nurse/history' %}bg-blue-50 text-blue-600{% else %}text-gray-600 hover:bg-gray-50{% endif %} transition">
+                        <i class="fas fa-history w-5 text-center"></i><span>Patient History</span>
+                    </a>
+                </nav>
             </div>
-            <nav class="mt-4 space-y-1 px-4">
-                <a href="/nurse/dashboard" class="flex items-center space-x-3 px-4 py-3 rounded-lg {% if request.path == '/nurse/dashboard' %}bg-blue-50 text-blue-600 font-semibold{% else %}text-gray-600 hover:bg-gray-50{% endif %}">
-                    <i class="fas fa-th-large w-5"></i><span>Dashboard</span>
-                </a>
-                <a href="/nurse/registration" class="flex items-center space-x-3 px-4 py-3 rounded-lg {% if request.path == '/nurse/registration' %}bg-blue-50 text-blue-600 font-semibold{% else %}text-gray-600 hover:bg-gray-50{% endif %}">
-                    <i class="fas fa-user-plus w-5"></i><span>Patient Registration</span>
-                </a>
-                <a href="/nurse/rooms" class="flex items-center space-x-3 px-4 py-3 rounded-lg {% if request.path == '/nurse/rooms' %}bg-blue-50 text-blue-600 font-semibold{% else %}text-gray-600 hover:bg-gray-50{% endif %}">
-                    <i class="fas fa-columns w-5"></i><span>All Rooms</span>
-                </a>
-                <a href="/nurse/history" class="flex items-center space-x-3 px-4 py-3 rounded-lg {% if request.path == '/nurse/history' %}bg-blue-50 text-blue-600 font-semibold{% else %}text-gray-600 hover:bg-gray-50{% endif %}">
-                    <i class="fas fa-history w-5"></i><span>Patients History</span>
-                </a>
-            </nav>
         </div>
-        <div class="p-4 border-t">
-            <a href="/" class="flex items-center space-x-3 px-4 py-3 text-gray-600 hover:bg-gray-50 rounded-lg">
-                <i class="fas fa-sign-out-alt w-5"></i><span>Logout</span>
+
+        <div class="p-4 border-t border-gray-100">
+            <a href="/help_feedback" target="_blank" class="flex items-center space-x-3 px-3 py-2 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg text-sm font-medium transition w-full text-left mb-1">
+                <i class="fas fa-info-circle w-5 text-center"></i><span>Help & Feedback</span>
+            </a>
+            <a href="/logout" class="flex items-center space-x-3 px-3 py-2 text-red-600 hover:bg-red-50 rounded-lg text-sm font-medium transition">
+                <i class="fas fa-sign-out-alt w-5 text-center"></i><span>Secure Logout</span>
             </a>
         </div>
     </aside>
 
-    <main class="flex-1 flex flex-col overflow-y-auto">
-        <header class="bg-white border-b p-6 flex justify-between items-center sticky top-0 z-10">
+    <main class="flex-1 flex flex-col overflow-y-auto w-full relative">
+        <header class="bg-white border-b p-4 md:px-8 md:py-5 flex justify-between items-center sticky top-0 z-10">
             <div>
-                <h1 class="text-2xl font-bold text-gray-800">{% block header_title %}Dashboard{% endblock %}</h1>
-                <p class="text-gray-500 text-sm">{% block header_subtitle %}Welcome back, Nurse{% endblock %}</p>
+                <h1 class="text-xl md:text-2xl font-bold text-gray-800 tracking-tight">{% block header_title %}Dashboard{% endblock %}</h1>
+                <p class="text-gray-500 text-xs md:text-sm mt-0.5">{% block header_subtitle %}Welcome back to E.M.M.A.S{% endblock %}</p>
             </div>
-            <div class="flex items-center space-x-3">
+            
+            <div class="flex items-center space-x-4">
                 <div class="text-right hidden sm:block">
-                    <p class="font-bold text-gray-800">General Medicine</p>
-                    <p class="text-xs text-gray-500">Department</p>
+                    <p class="font-bold text-sm text-gray-800 leading-tight">Nurse Station</p>
+                    <p class="text-[10px] uppercase tracking-wider text-green-600 font-bold"><i class="fas fa-circle text-[8px] mr-1"></i>Active</p>
                 </div>
-                <div class="bg-blue-600 text-white w-10 h-10 rounded-full flex items-center justify-center font-bold">N</div>
+                <div class="bg-gradient-to-br from-blue-100 to-blue-200 text-blue-600 w-10 h-10 rounded-full flex items-center justify-center font-bold shadow-sm ring-2 ring-white">
+                    <i class="fas fa-user-nurse"></i>
+                </div>
             </div>
         </header>
         
-        <div class="p-6">
+        <div class="p-4 md:p-8 w-full max-w-7xl mx-auto">
             {% block content %}{% endblock %}
         </div>
     </main>
 
-    <script>
-        // Auto-hide toasts after 5 seconds
-        setTimeout(() => {
-            document.querySelectorAll('.animate-toast').forEach(toast => {
-                toast.style.opacity = '0';
-                toast.style.transition = 'opacity 0.5s ease';
-                setTimeout(() => toast.remove(), 500);
-            });
-        }, 5000);
-    </script>
     {% block scripts %}{% endblock %}
 </body>
 </html>
