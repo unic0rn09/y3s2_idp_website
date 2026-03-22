@@ -1,89 +1,13 @@
-{% extends 'doctor_base.html' %}
-
-{% block back_button %}
-<button onclick="confirmExit()" class="mr-4 text-gray-400 hover:text-red-500 transition"><i class="fas fa-arrow-left"></i></button>
-{% endblock %}
-{% block header_title %}Consultation Session{% endblock %}
-{% block header_subtitle %}AI-powered medical transcription{% endblock %}
-
-{% block content %}
-<div class="space-y-6">
-    <div class="bg-gray-50 border border-gray-200 rounded-xl p-4 flex flex-col md:flex-row justify-between md:items-center shadow-sm">
-        <div class="grid grid-cols-2 md:grid-cols-4 gap-6 flex-1 w-full text-sm">
-            <div><p class="text-xs text-gray-500 mb-1">Patient Name</p><p class="font-bold text-gray-800">{{ patient.name }}</p></div>
-            <div><p class="text-xs text-gray-500 mb-1">IC Number</p><p class="font-bold text-gray-800">{{ patient.ic }}</p></div>
-            <div><p class="text-xs text-gray-500 mb-1">Age</p><p class="font-bold text-gray-800">{{ patient.age }}</p></div>
-            <div><p class="text-xs text-gray-500 mb-1">Symptoms</p><p class="font-bold text-gray-800 truncate" title="{{ patient.symptoms }}">{{ patient.symptoms }}</p></div>
-        </div>
-        <div class="flex items-center space-x-6 mt-4 md:mt-0 border-l border-gray-200 pl-6">
-            <div class="flex flex-col items-center justify-center"><i class="fas fa-heartbeat text-blue-500 text-lg mb-1"></i><p class="text-[10px] text-gray-500 uppercase">BP</p><p class="font-bold text-sm">{{ patient.bp }}</p></div>
-            <div class="flex flex-col items-center justify-center"><i class="far fa-heart text-blue-500 text-lg mb-1"></i><p class="text-[10px] text-gray-500 uppercase">HR</p><p class="font-bold text-sm">{{ patient.hr }}</p></div>
-            <div class="flex flex-col items-center justify-center"><i class="fas fa-thermometer-half text-blue-500 text-lg mb-1"></i><p class="text-[10px] text-gray-500 uppercase">Temp</p><p class="font-bold text-sm">{{ patient.temp }}</p></div>
-            <div class="flex flex-col items-center justify-center"><i class="fas fa-lungs text-blue-500 text-lg mb-1"></i><p class="text-[10px] text-gray-500 uppercase">RR</p><p class="font-bold text-sm">{{ patient.rr }}</p></div>
-        </div>
-    </div>
-
-    <div class="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden flex flex-col min-h-[500px]">
-        <div class="p-12 flex flex-col items-center justify-center border-b border-gray-100 flex-1 relative bg-white transition-all duration-500" id="audioSection">
-            <div id="initialState" class="text-center transition-all duration-300 transform">
-                <div class="w-20 h-20 bg-blue-50 rounded-full flex items-center justify-center mx-auto mb-6"><i class="fas fa-microphone text-3xl text-blue-500"></i></div>
-                <h3 class="text-xl font-bold text-gray-900 mb-2">Ready to Start Consultation</h3>
-                <p class="text-gray-500 text-sm mb-8">Click the button below to enable your microphone and begin</p>
-                <button onclick="startSession()" class="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3.5 rounded-lg font-bold shadow-md transition transform hover:scale-105 active:scale-95 flex items-center mx-auto"><i class="far fa-play-circle text-lg mr-2"></i> Start Session</button>
-            </div>
-            <div id="activeState" class="hidden w-full flex flex-col items-center justify-center space-y-8">
-                <div class="w-full bg-blue-50/50 rounded-xl h-24 flex items-center justify-center overflow-hidden">
-                    <div id="waveContainer" class="flex items-end justify-center space-x-1.5 w-full px-4 h-16"></div>
-                </div>
-                <div class="flex items-center space-x-4">
-                    <button id="btnPause" onclick="togglePause()" class="bg-orange-500 hover:bg-orange-600 text-white px-8 py-3 rounded-lg font-bold shadow-md transition flex items-center w-40 justify-center"><i class="fas fa-pause mr-2" id="pauseIcon"></i> <span id="pauseText">Pause</span></button>
-                    <button onclick="confirmFinish()" class="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-lg font-bold shadow-md transition flex items-center"><i class="fas fa-check mr-2"></i> Finish Consultation</button>
-                </div>
-            </div>
-            <div id="recordingIndicator" class="absolute top-4 right-4 bg-red-50 text-red-600 px-3 py-1.5 rounded-full text-xs font-bold flex items-center hidden shadow-sm border border-red-100">
-                <div class="w-2 h-2 rounded-full bg-red-500 mr-2 animate-pulse" id="redDot"></div><span id="recordingStatusText">Recording</span>
-            </div>
-        </div>
-
-        <div class="bg-gray-50 flex flex-col flex-1 min-h-[250px]">
-            <div class="px-6 py-4 flex justify-between items-center bg-white border-b border-gray-100 shadow-sm">
-                <h4 class="font-bold text-gray-800">Live Transcription</h4>
-                <button id="editToggleBtn" onclick="toggleEdit()" class="text-blue-600 hover:text-blue-800 text-sm font-medium transition flex items-center hidden"><i class="fas fa-pen mr-1.5 text-xs"></i> Edit</button>
-            </div>
-            <form id="finishLiveForm" action="/doctor/finish_live/{{ patient.id }}" method="POST" class="h-full flex-1">
-                <textarea name="transcription" id="transcriptionBox" readonly class="w-full h-full p-6 bg-gray-50 outline-none resize-none text-gray-700 leading-relaxed font-medium" placeholder="Transcription will appear here..."></textarea>
-            </form>
-        </div>
-    </div>
-</div>
-
-<div id="exitModal" class="fixed inset-0 bg-gray-900 bg-opacity-75 hidden flex items-center justify-center z-[100]">
-    <div class="bg-white rounded-xl shadow-2xl w-full max-w-sm p-6 text-center transform transition-all scale-95 opacity-0 duration-300" id="exitModalContent">
-        <div class="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-4 border border-red-100"><i class="fas fa-exclamation-triangle text-2xl text-red-500"></i></div>
-        <h3 class="font-bold text-lg text-gray-800 mb-2">Exit Session?</h3>
-        <p class="text-sm text-gray-500 mb-6">Are you sure you want to exit? The patient will remain in the queue, but your recorded audio will be lost.</p>
-        <div class="flex space-x-3">
-            <button onclick="closeModal('exitModal')" class="w-1/2 py-2.5 border border-gray-200 rounded-lg text-sm font-bold text-gray-600 hover:bg-gray-50 transition">No, stay</button>
-            <a href="/doctor/cancel_live/{{ patient.id }}" class="w-1/2 py-2.5 bg-red-600 text-white rounded-lg text-sm font-bold hover:bg-red-700 block text-center transition">Yes, Quit</a>
-        </div>
-    </div>
-</div>
-
-<div id="finishModal" class="fixed inset-0 bg-gray-900 bg-opacity-75 hidden flex items-center justify-center z-[100]">
-    <div class="bg-white rounded-xl shadow-2xl w-full max-w-sm p-6 text-center transform transition-all scale-95 opacity-0 duration-300" id="finishModalContent">
-        <div class="w-16 h-16 bg-blue-50 rounded-full flex items-center justify-center mx-auto mb-4 border border-blue-100"><i class="far fa-question-circle text-3xl text-blue-600"></i></div>
-        <h3 class="font-bold text-lg text-gray-800 mb-2">Complete Consultation?</h3>
-        <p class="text-sm text-gray-500 mb-6">Generate structural notes from the transcription?</p>
-        <div class="flex space-x-3">
-            <button type="button" onclick="document.getElementById('finishLiveForm').submit()" class="w-1/2 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-bold hover:bg-blue-700 transition">Yes, Complete</button>
-            <button type="button" onclick="closeModal('finishModal')" class="w-1/2 py-2.5 border border-gray-200 rounded-lg text-sm font-bold text-gray-600 hover:bg-gray-50 transition">Cancel</button>
-        </div>
-    </div>
-</div>
-{% endblock %}
-
 {% block scripts %}
 <script>
+    // 1. TURN ON GLOBAL PROTECTION
+    window.isUnsaved = true;
+
+    // 2. Turn OFF protection when purposely finishing the form
+    document.getElementById('finishLiveForm').addEventListener('submit', function() {
+        window.isUnsaved = false;
+    });
+
     let isPaused = false; let isEditing = false;
     let mediaRecorder; let audioContext; let analyser; let dataArray; let animationId; let audioChunks = [];
 

@@ -20,7 +20,7 @@
             
             {% if p.priority %}<div class="absolute top-0 right-0 bg-red-500 text-white text-[9px] font-bold px-2.5 py-0.5 rounded-bl-lg uppercase tracking-wider shadow-sm z-10">Priority</div>{% endif %}
             
-            <div class="lg:w-3/5 flex flex-col justify-center pr-4 border-b lg:border-b-0 lg:border-r border-gray-100 mb-3 lg:mb-0 pb-3 lg:pb-0">
+            <div class="lg:w-[62%] flex flex-col justify-center pr-4 border-b lg:border-b-0 lg:border-r border-gray-100 mb-3 lg:mb-0 pb-3 lg:pb-0">
                 <div class="flex justify-between items-start">
                     <div>
                         <h3 class="text-base font-bold text-gray-900 leading-tight group-hover:text-blue-700 transition-colors">{{ p.name }}</h3>
@@ -32,22 +32,22 @@
                 </div>
             </div>
 
-            <div class="lg:w-2/5 flex flex-col justify-between pl-0 lg:pl-4">
+            <div class="lg:w-[38%] flex flex-col justify-between pl-0 lg:pl-4">
                 <div class="grid grid-cols-4 gap-1.5 mb-2.5">
                     <div class="text-center bg-blue-50/50 rounded flex flex-col justify-center py-1">
-                        <p class="text-[12px] text-gray-500 font-bold uppercase"><i class="fas fa-thermometer-half text-red-400 mr-1"></i>T</p>
+                        <p class="text-[8px] text-gray-500 font-bold uppercase"><i class="fas fa-thermometer-half text-red-400 mr-1"></i>T</p>
                         <p class="text-xs font-bold text-gray-800">{{ p.temp }}</p>
                     </div>
                     <div class="text-center bg-blue-50/50 rounded flex flex-col justify-center py-1">
-                        <p class="text-[12px] text-gray-500 font-bold uppercase"><i class="fas fa-heartbeat text-red-400 mr-1"></i>HR</p>
+                        <p class="text-[8px] text-gray-500 font-bold uppercase"><i class="fas fa-heartbeat text-red-400 mr-1"></i>HR</p>
                         <p class="text-xs font-bold text-gray-800">{{ p.hr }}</p>
                     </div>
                     <div class="text-center bg-blue-50/50 rounded flex flex-col justify-center py-1">
-                        <p class="text-[12px] text-gray-500 font-bold uppercase"><i class="fas fa-lungs text-blue-400 mr-1"></i>RR</p>
+                        <p class="text-[8px] text-gray-500 font-bold uppercase"><i class="fas fa-lungs text-blue-400 mr-1"></i>RR</p>
                         <p class="text-xs font-bold text-gray-800">{{ p.rr }}</p>
                     </div>
                     <div class="text-center bg-blue-50/50 rounded flex flex-col justify-center py-1">
-                        <p class="text-[12px] text-gray-500 font-bold uppercase"><i class="fas fa-tint text-blue-500 mr-1"></i>BP</p>
+                        <p class="text-[8px] text-gray-500 font-bold uppercase"><i class="fas fa-tint text-blue-500 mr-1"></i>BP</p>
                         <p class="text-xs font-bold text-gray-800">{{ p.bp }}</p>
                     </div>
                 </div>
