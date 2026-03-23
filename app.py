@@ -46,9 +46,15 @@ class Patient(db.Model):
     pmh = db.Column(db.Text, default="")
     meds = db.Column(db.Text, default="")
     allergies = db.Column(db.Text, default="")
-    sh_smoke = db.Column(db.Boolean, default=False)
-    sh_alcohol = db.Column(db.Boolean, default=False)
-    sh_living = db.Column(db.String(50), default="")
+    
+    # Updated Structured Social History Fields
+    sh_occupation = db.Column(db.String(255), default="")
+    sh_living = db.Column(db.String(255), default="")
+    sh_smoking = db.Column(db.String(255), default="")
+    sh_alcohol = db.Column(db.String(255), default="")
+    sh_activity = db.Column(db.String(255), default="")
+    sh_diet = db.Column(db.String(255), default="")
+    sh_sleep = db.Column(db.String(255), default="")
     sh_others = db.Column(db.String(255), default="")
 
 
@@ -82,8 +88,6 @@ def save_patient_data_to_folder(patient):
         timestamp = datetime.now().strftime("%H%M%S")
         filename = f"record_{timestamp}.json"
         
-    file_path = os.path.join(target_dir, filename)
-    
     # 5. Structure the data to be saved
     archive_data = {
         "metadata": {
@@ -96,7 +100,16 @@ def save_patient_data_to_folder(patient):
         "clinical_notes": {
             "cc": patient.cc, "hpi": patient.hpi, "pmh": patient.pmh, 
             "meds": patient.meds, "allergies": patient.allergies,
-            "social": {"smoke": patient.sh_smoke, "alcohol": patient.sh_alcohol, "living": patient.sh_living}
+            "social": {
+                "occupation": patient.sh_occupation, 
+                "living": patient.sh_living, 
+                "smoking": patient.sh_smoking, 
+                "alcohol": patient.sh_alcohol,
+                "activity": patient.sh_activity,
+                "diet": patient.sh_diet,
+                "sleep": patient.sh_sleep,
+                "others": patient.sh_others
+            }
         },
         "raw_transcription": patient.transcription
     }
@@ -226,9 +239,13 @@ def doctor_dashboard():
         test_p.pmh = ""
         test_p.meds = ""
         test_p.allergies = ""
-        test_p.sh_smoke = False
-        test_p.sh_alcohol = False
+        test_p.sh_occupation = ""
         test_p.sh_living = ""
+        test_p.sh_smoking = ""
+        test_p.sh_alcohol = ""
+        test_p.sh_activity = ""
+        test_p.sh_diet = ""
+        test_p.sh_sleep = ""
         test_p.sh_others = ""
         db.session.commit()
 
@@ -287,10 +304,16 @@ def save_draft(patient_id):
     patient.pmh = request.form.get('pmh', '')
     patient.meds = request.form.get('meds', '')
     patient.allergies = request.form.get('allergies', '')
-    patient.sh_smoke = True if request.form.get('sh_smoke') else False
-    patient.sh_alcohol = True if request.form.get('sh_alcohol') else False
+    
+    patient.sh_occupation = request.form.get('sh_occupation', '')
     patient.sh_living = request.form.get('sh_living', '')
+    patient.sh_smoking = request.form.get('sh_smoking', '')
+    patient.sh_alcohol = request.form.get('sh_alcohol', '')
+    patient.sh_activity = request.form.get('sh_activity', '')
+    patient.sh_diet = request.form.get('sh_diet', '')
+    patient.sh_sleep = request.form.get('sh_sleep', '')
     patient.sh_others = request.form.get('sh_others', '')
+    
     patient.status = 'Draft'
     db.session.commit()
     return redirect(url_for('doctor_dashboard'))
@@ -303,9 +326,14 @@ def generate_report(patient_id):
     patient.pmh = request.form.get('pmh', '')
     patient.meds = request.form.get('meds', '')
     patient.allergies = request.form.get('allergies', '')
-    patient.sh_smoke = True if request.form.get('sh_smoke') else False
-    patient.sh_alcohol = True if request.form.get('sh_alcohol') else False
+    
+    patient.sh_occupation = request.form.get('sh_occupation', '')
     patient.sh_living = request.form.get('sh_living', '')
+    patient.sh_smoking = request.form.get('sh_smoking', '')
+    patient.sh_alcohol = request.form.get('sh_alcohol', '')
+    patient.sh_activity = request.form.get('sh_activity', '')
+    patient.sh_diet = request.form.get('sh_diet', '')
+    patient.sh_sleep = request.form.get('sh_sleep', '')
     patient.sh_others = request.form.get('sh_others', '')
     
     # Trigger Folder-based Data Collection (Test patient is blocked inside this function)

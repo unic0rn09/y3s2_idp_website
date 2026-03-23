@@ -52,18 +52,37 @@
             </div>
 
             <div class="bg-gray-50 p-4 rounded-xl border">
-                <label class="block text-sm font-bold text-gray-700 mb-3">6. Social History</label>
-                <div class="grid grid-cols-2 gap-4 mb-3">
-                    <label class="flex items-center space-x-2 text-sm text-gray-700"><input type="checkbox" name="sh_smoke" {% if patient.sh_smoke %}checked{% endif %} class="w-4 h-4 text-blue-600"> <span>Smoke</span></label>
-                    <label class="flex items-center space-x-2 text-sm text-gray-700"><input type="checkbox" name="sh_alcohol" {% if patient.sh_alcohol %}checked{% else %}checked{% endif %} class="w-4 h-4 text-blue-600"> <span>Alcohol</span></label>
+                <label class="block text-sm font-bold text-gray-700 mb-4 border-b pb-2">6. Social History & Lifestyle</label>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-gray-600 mb-1">Occupation</label>
+                        <input type="text" name="sh_occupation" value="{{ patient.sh_occupation }}" placeholder="e.g., Office worker, retired..." class="w-full border rounded-lg p-2 text-sm outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-600 mb-1">Living Conditions</label>
+                        <input type="text" name="sh_living" value="{{ patient.sh_living }}" placeholder="e.g., Lives with spouse in a 2-story house..." class="w-full border rounded-lg p-2 text-sm outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-600 mb-1">Smoking History</label>
+                        <input type="text" name="sh_smoking" value="{{ patient.sh_smoking }}" placeholder="e.g., 10 cigarettes/day for 15 years..." class="w-full border rounded-lg p-2 text-sm outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-600 mb-1">Alcohol History</label>
+                        <input type="text" name="sh_alcohol" value="{{ patient.sh_alcohol }}" placeholder="e.g., 2 glasses of wine on weekends..." class="w-full border rounded-lg p-2 text-sm outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-600 mb-1">Physical Activity</label>
+                        <input type="text" name="sh_activity" value="{{ patient.sh_activity }}" placeholder="e.g., Sedentary, walks 30 mins 3x/week..." class="w-full border rounded-lg p-2 text-sm outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-600 mb-1">Dietary Habits</label>
+                        <input type="text" name="sh_diet" value="{{ patient.sh_diet }}" placeholder="e.g., High sodium, generally balanced..." class="w-full border rounded-lg p-2 text-sm outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <div class="md:col-span-2">
+                        <label class="block text-xs font-bold text-gray-600 mb-1">Sleep Patterns</label>
+                        <input type="text" name="sh_sleep" value="{{ patient.sh_sleep }}" placeholder="e.g., 6 hours/night, frequent waking..." class="w-full border rounded-lg p-2 text-sm outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
                 </div>
-                <label class="block text-xs font-bold text-gray-500 uppercase mb-2 mt-4">Living Condition</label>
-                <div class="space-y-2 mb-3">
-                    <label class="flex items-center space-x-2 text-sm text-gray-700"><input type="radio" name="sh_living" value="alone" {% if patient.sh_living == 'alone' %}checked{% endif %} class="w-4 h-4 text-blue-600"> <span>Live alone</span></label>
-                    <label class="flex items-center space-x-2 text-sm text-gray-700"><input type="radio" name="sh_living" value="1-2" {% if patient.sh_living == '1-2' %}checked{% endif %} class="w-4 h-4 text-blue-600"> <span>Live with 1-2 people</span></label>
-                    <label class="flex items-center space-x-2 text-sm text-gray-700"><input type="radio" name="sh_living" value=">2" {% if patient.sh_living == '>2' %}checked{% endif %} class="w-4 h-4 text-blue-600"> <span>Live with more than 2 people</span></label>
-                </div>
-                <input type="text" name="sh_others" value="{{ patient.sh_others }}" placeholder="Others..." class="w-full border rounded-lg p-2 text-sm outline-none focus:ring-2 focus:ring-blue-500">
             </div>
 
             <div class="bg-gray-50 p-4 rounded-xl border">
@@ -120,13 +139,11 @@
         const btn = document.getElementById('transBtn');
         isTranslated = !isTranslated;
         
-        // Example translation toggle logic
         if(isTranslated) {
             tb.value = "Pesakit datang dengan demam panas dan sakit kepala selama dua hari. Tidak makan ubat sebelum ini. Tak merokok tapi kadang minum...";
             btn.innerHTML = '<i class="fas fa-undo mr-2"></i>View Original Raw Text';
             btn.className = "bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold py-2 px-4 rounded-lg text-sm transition";
         } else {
-            // We use the patient.transcription value directly when toggling back
             tb.value = `{{ patient.transcription | default("Patient presents with acute fever and headache lasting for 2 days. Did not take any medication. Does not smoke but drinks occasionally...", true) }}`;
             btn.innerHTML = '<i class="fas fa-language mr-2"></i>Translate to English';
             btn.className = "bg-blue-100 hover:bg-blue-200 text-blue-700 font-bold py-2 px-4 rounded-lg text-sm transition";

@@ -9,7 +9,6 @@
 {% block content %}
 <style>
     @media print {
-        /* Reset layout restrictions from the base template */
         body, html, main {
             height: auto !important;
             overflow: visible !important;
@@ -17,41 +16,18 @@
             background-color: white !important;
         }
         
-        /* HIDE THE GLOBAL HEADER FROM BASE TEMPLATE */
-        header {
-            display: none !important;
-        }
+        header { display: none !important; }
+        ::-webkit-scrollbar { display: none !important; }
+        aside { display: none !important; }
+        .print\:hidden { display: none !important; }
         
-        /* HIDE SCROLLBARS DURING PRINTING */
-        ::-webkit-scrollbar {
-            display: none !important;
-        }
-        
-        /* Hide the sidebar if it's visible */
-        aside {
-            display: none !important;
-        }
-
-        /* Hide print buttons and back buttons */
-        .print\:hidden {
-            display: none !important;
-        }
-        
-        /* Force ALL text and borders to be black when printing */
         * {
             color: black !important;
             border-color: black !important;
         }
 
-        /* Remove shadows and container borders for a clean print */
-        .print\:shadow-none {
-            box-shadow: none !important;
-        }
-        .print\:border-none {
-            border: none !important;
-        }
-
-        /* Ensure content expands fully on the paper */
+        .print\:shadow-none { box-shadow: none !important; }
+        .print\:border-none { border: none !important; }
         .max-w-4xl {
             max-width: 100% !important;
             margin: 0 !important;
@@ -97,13 +73,16 @@
         <div><h3 class="font-bold text-[12pt] border-b border-black pb-1 mb-1">5. Allergies</h3>
             <p class="pl-4">{{ patient.allergies }}</p></div>
 
-        <div><h3 class="font-bold text-[12pt] border-b border-black pb-1 mb-1">6. Social History</h3>
-            <ul class="pl-8 list-disc">
-                <li>Smoking: {% if patient.sh_smoke %}Yes{% else %}No{% endif %}</li>
-                <li>Alcohol: {% if patient.sh_alcohol %}Yes{% else %}No{% endif %}</li>
-                <li>Living Condition: {{ patient.sh_living }}</li>
-                {% if patient.sh_others %}<li>Notes: {{ patient.sh_others }}</li>{% endif %}
-            </ul>
+        <div><h3 class="font-bold text-[12pt] border-b border-black pb-1 mb-2">6. Social History & Lifestyle</h3>
+            <div class="pl-4 grid grid-cols-1 sm:grid-cols-2 gap-y-2 gap-x-4">
+                <p><span class="font-bold mr-2">Occupation:</span>{{ patient.sh_occupation | default('Not specified', true) }}</p>
+                <p><span class="font-bold mr-2">Living Conditions:</span>{{ patient.sh_living | default('Not specified', true) }}</p>
+                <p><span class="font-bold mr-2">Smoking:</span>{{ patient.sh_smoking | default('Not specified', true) }}</p>
+                <p><span class="font-bold mr-2">Alcohol:</span>{{ patient.sh_alcohol | default('Not specified', true) }}</p>
+                <p><span class="font-bold mr-2">Physical Activity:</span>{{ patient.sh_activity | default('Not specified', true) }}</p>
+                <p><span class="font-bold mr-2">Dietary Habits:</span>{{ patient.sh_diet | default('Not specified', true) }}</p>
+                <p class="sm:col-span-2"><span class="font-bold mr-2">Sleep Patterns:</span>{{ patient.sh_sleep | default('Not specified', true) }}</p>
+            </div>
         </div>
 
         <div><h3 class="font-bold text-[12pt] border-b border-black pb-1 mb-1">7. Vital Signs</h3>
