@@ -255,7 +255,8 @@ def live_consultation(patient_id):
     patient = Patient.query.get_or_404(patient_id)
     patient.status = 'Consulting'
     db.session.commit()
-    return render_template('live_consultation_session.html', patient=patient, doctor=User.query.get(session['user_id']))
+    doctor_user = db.session.get(User, session.get('user_id'))
+    return render_template('live_consultation_session.html', patient=patient, doctor=doctor_user)
 
 @app.route('/doctor/cancel_live/<patient_id>')
 def cancel_live(patient_id):
@@ -363,13 +364,13 @@ if __name__ == '__main__':
         # Uncomment the lines below to spawn the test patient on startup.
         # Leave them commented out to run the app normally.
         # ==============================================================
-        # test_patient = Patient.query.filter_by(ic='999999-99-9999').first()
-        # if not test_patient:
-        #     test_patient = Patient(name="Auto Test Patient", ic="999999-99-9999", age="25", room="1", symptoms="Mock Test", status='Waiting')
-        #     db.session.add(test_patient)
-        # else:
-        #     test_patient.status = 'Waiting'
-        # db.session.commit()
+        test_patient = Patient.query.filter_by(ic='999999-99-9999').first()
+        if not test_patient:
+            test_patient = Patient(name="Auto Test Patient", ic="999999-99-9999", age="25", room="1", symptoms="Mock Test", status='Waiting')
+            db.session.add(test_patient)
+        else:
+            test_patient.status = 'Waiting'
+        db.session.commit()
         # ==============================================================
         
     app.run(host='0.0.0.0', port=5000, debug=True)
