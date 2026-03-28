@@ -1,3 +1,4 @@
+import sklearn
 import os
 import json 
 from datetime import datetime
@@ -7,6 +8,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 
 #LoRa adapter library#
 import tempfile
+import numpy as np
 import subprocess
 import torch
 import soundfile as sf 
