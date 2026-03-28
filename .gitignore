@@ -2,3 +2,6 @@
 /instance
 *.db
 /static
+__pycache__/
+*.py[cod]
+
