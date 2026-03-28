@@ -138,9 +138,38 @@
             const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
             
             // Set up MediaRecorder
-            mediaRecorder = new MediaRecorder(stream);
-            mediaRecorder.start();
-            mediaRecorder.ondataavailable = e => { audioChunks.push(e.data); };
+// Set up MediaRecorder to capture in chunks
+mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
+mediaRecorder.start(4000); // Triggers ondataavailable every 4 seconds
+
+mediaRecorder.ondataavailable = async e => { 
+    audioChunks.push(e.data); 
+    
+    // Send the 4-second chunk to the backend if not paused
+    if (e.data.size > 0 && !isPaused) {
+        const chunkBlob = new Blob([e.data], { type: 'audio/webm' });
+        const formData = new FormData();
+        formData.append('audio', chunkBlob, 'chunk.webm');
+        
+        try {
+            const response = await fetch('/api/transcribe', { 
+                method: 'POST', 
+                body: formData 
+            });
+            const result = await response.json();
+            
+            if (result.text) {
+                const tBox = document.getElementById('transcriptionBox');
+                // Append the live translated text to the UI
+                tBox.value += result.text + " ";
+                // Auto-scroll to bottom of textbox
+                tBox.scrollTop = tBox.scrollHeight;
+            }
+        } catch (err) {
+            console.error("Transcription chunk failed:", err);
+        }
+    }
+};
             
             // Set up Web Audio API for Real-time Visualizer
             audioContext = new (window.AudioContext || window.webkitAudioContext)();
@@ -164,10 +193,10 @@
             setRecordingUIStatus(true);
             drawRealWaves(); 
 
-            // Mock transcription incoming text
-            setTimeout(() => {
-                if(!isPaused) { tBox.value += "This is a mock transcription test. The microphone is currently detecting audio successfully.\n\n"; }
-            }, 3000);
+            // Mock FAKE transcription incoming text
+            //setTimeout(() => {
+              //  if(!isPaused) { tBox.value += "This is a mock transcription test. The microphone is currently detecting audio successfully.\n\n"; }
+           // }, 3000);
 
         } catch (err) {
             alert("Microphone access is required. Please allow microphone permissions in your browser.");
