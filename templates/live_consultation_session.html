@@ -167,13 +167,14 @@ mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
 mediaRecorder.start(4000); // Triggers ondataavailable every 4 seconds
 
 mediaRecorder.ondataavailable = async e => { 
+    // 1. Add the new 4-second snippet to our total collection
     audioChunks.push(e.data); 
     
-    // Send the 4-second chunk to the backend if not paused
     if (e.data.size > 0 && !isPaused) {
-        const chunkBlob = new Blob([e.data], { type: 'audio/webm' });
+        // 2. Package ALL chunks gathered so far into one complete, valid WebM file
+        const fullBlob = new Blob(audioChunks, { type: 'audio/webm' });
         const formData = new FormData();
-        formData.append('audio', chunkBlob, 'chunk.webm');
+        formData.append('audio', fullBlob, 'recording.webm');
         
         try {
             const response = await fetch('/api/transcribe', { 
@@ -184,10 +185,10 @@ mediaRecorder.ondataavailable = async e => {
             
             if (result.text) {
                 const tBox = document.getElementById('transcriptionBox');
-                // Append the live translated text to the UI
-                tBox.value += result.text + " ";
-                // Auto-scroll to bottom of textbox
-                tBox.scrollTop = tBox.scrollHeight;
+                // 3. REPLACE the text box content (Do not use +=)
+                // Since we send the whole recording, Whisper returns the whole transcript
+                tBox.value = result.text; 
+                tBox.scrollTop = tBox.scrollHeight; // Auto-scroll to bottom
             }
         } catch (err) {
             console.error("Transcription chunk failed:", err);
