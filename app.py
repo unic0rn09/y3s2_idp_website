@@ -92,6 +92,7 @@ def save_patient_data_to_folder(patient):
     else:
         timestamp = datetime.now().strftime("%H%M%S")
         filename = f"record_{timestamp}.json"
+        file_path = os.path.join(target_dir, filename)
         
     # 5. Structure the data to be saved
     archive_data = {
