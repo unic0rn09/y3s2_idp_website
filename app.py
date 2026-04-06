@@ -31,7 +31,7 @@ os.makedirs(INSTANCE_FOLDER, exist_ok=True)
 
 #API KEY HERE!!!!!!!!!!!!!################
 # #################IMPORTANT#####################
-client = OpenAI(api_key="YOUR_OPENAI_API_KEY") 
+client = OpenAI(api_key="----") 
 
 # Configure SQLite Database
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///scribe.db'
@@ -118,15 +118,24 @@ def get_asr():
         return _ASR["processor"], _ASR["model"]
         
     processor = WhisperProcessor.from_pretrained(BASE_MODEL_ID)
-    torch_dtype = torch.float16 if torch.cuda.is_available() else torch.float32
     
-    try:
-        base = WhisperForConditionalGeneration.from_pretrained(BASE_MODEL_ID, device_map="auto", torch_dtype=torch_dtype)
-    except Exception:
-        base = WhisperForConditionalGeneration.from_pretrained(BASE_MODEL_ID, torch_dtype=torch_dtype)
-        base = base.to("cuda" if torch.cuda.is_available() else "cpu")
+    # Determine the device explicitly for Jetson GPU
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+    torch_dtype = torch.float16 if device == "cuda" else torch.float32
     
-    # Safely handle config attribute differences between Transformers versions
+    print(f"Loading ASR on {device} with precision {torch_dtype}...")
+    
+    # 🚀 FIX: FORCE the entire model onto the CUDA device to prevent crashes
+    base = WhisperForConditionalGeneration.from_pretrained(
+        BASE_MODEL_ID, 
+        device_map={"": device}, 
+        torch_dtype=torch_dtype
+    )
+    
+    # 🚀 FIX: Tie weights to resolve the warning in your logs
+    base.tie_weights()
+    
+    # Safely handle config attribute differences
     config_obj = getattr(base, "generation_config", base.config)
     config_obj.forced_decoder_ids = None
     config_obj.suppress_tokens = []
@@ -145,6 +154,7 @@ def get_asr():
     else:
         print("⚠️ WARNING: LoRA directory not found or USE_LORA is False. Using base model.")
         
+    # 🚀 LINE 133: Ensure these two lines have exactly 4 spaces of indentation
     _ASR["processor"], _ASR["model"] = processor, model
     return processor, model
 
@@ -210,7 +220,6 @@ def generate_diarized_transcript(raw_text: str) -> str:
 
 
 # ===== REAL-TIME TRANSCRIPTION ROUTE =====
-# ===== REAL-TIME TRANSCRIPTION ROUTE =====
 @app.route('/api/transcribe', methods=['POST'])
 def api_transcribe():
     if 'audio' not in request.files:
@@ -225,29 +234,37 @@ def api_transcribe():
     final_wav_name = f"visit_{safe_vid}_chunk{chunk_index}.wav"
     final_wav_path = os.path.join(INSTANCE_FOLDER, final_wav_name)
     
+    # Create a temporary webm file to hold the incoming browser data
     with tempfile.NamedTemporaryFile(suffix='.webm', delete=False) as temp_webm:
         audio_file.save(temp_webm.name)
         temp_webm_path = temp_webm.name
 
     try:
-        # 🚀 PREVENT CRASH: If file is basically empty (under 5KB), ignore it and return 200 OK
+        # 🚀 PREVENT CRASH: Skip processing if the file is too small (header only)
         if os.path.getsize(temp_webm_path) < 5000:
             return jsonify({'text': ''}), 200
 
-        subprocess.run(['ffmpeg', '-y', '-i', temp_webm_path, '-ar', str(TARGET_SR), '-ac', '1', final_wav_path], 
-                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)
+        # Convert the chunk to the correct WAV format for Whisper
+        subprocess.run(
+            ['ffmpeg', '-y', '-i', temp_webm_path, '-ar', str(TARGET_SR), '-ac', '1', final_wav_path], 
+            stdout=subprocess.DEVNULL, 
+            stderr=subprocess.DEVNULL, 
+            check=True
+        )
         
+        # Run transcription on the new chunk
         text = transcribe_wav(final_wav_path)
-        return jsonify({'text': text}), 200
+        return jsonify({'text': text}), 200 
         
-    except subprocess.CalledProcessError:
-        # 🚀 FIX: Ignore FFmpeg crash on the final chopped chunk
-        return jsonify({'text': ''}), 200
     except Exception as e:
-        print("Transcription Error:", e)
-        return jsonify({'text': ''}), 200
+        # 🚀 SILENT FAIL: Log error to terminal, but tell frontend everything is "OK"
+        print(f"⚠️ Transcription Error on chunk {chunk_index}: {e}")
+        return jsonify({'text': ''}), 200 
+        
     finally:
-        if os.path.exists(temp_webm_path): os.remove(temp_webm_path)
+        # Always clean up the temporary webm file to save space on the Jetson
+        if os.path.exists(temp_webm_path): 
+            os.remove(temp_webm_path)
 
 # ===== DATA COLLECTION HELPER =====
 def save_patient_data_to_folder(patient):
