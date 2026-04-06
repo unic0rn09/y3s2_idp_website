@@ -120,13 +120,12 @@
 
     // --- Finalization Logic ---
     document.getElementById('finishLiveForm').addEventListener('submit', function(e) {
-        e.preventDefault(); // Stop standard form submission
+        e.preventDefault(); 
         isFinishing = true;
         window.isUnsaved = false;
 
         document.getElementById('hiddenTranscription').value = document.getElementById('transcriptionBox').value;
 
-        // Change the modal to a loading screen while OpenAI does its job
         const modalContent = document.getElementById('finishModalContent');
         modalContent.innerHTML = `
             <div class="text-center py-4">
@@ -137,12 +136,16 @@
             </div>
         `;
 
-        // If recording is active, stop it. This forces the final chunk to upload.
         if (mediaRecorder && mediaRecorder.state !== "inactive") {
             mediaRecorder.stop();
+            
+            // 🚀 THE FIX: A 3-second safety fallback
+            setTimeout(() => {
+                HTMLFormElement.prototype.submit.call(document.getElementById('finishLiveForm'));
+            }, 3000);
+            
         } else if (pendingUploads === 0) {
-            // If already stopped and no pending uploads, submit immediately
-            e.target.submit();
+            HTMLFormElement.prototype.submit.call(document.getElementById('finishLiveForm'));
         }
     });
 
@@ -178,20 +181,20 @@
             document.getElementById('requestingState').classList.add('hidden');
 
             mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
-            mediaRecorder.start(15000); // Trigger upload every 15 seconds!
+            
+            // 🚀 FAST SUBTITLE SPEED: Change 15000 to 4000 (4 seconds)
+            mediaRecorder.start(4000); 
 
             mediaRecorder.ondataavailable = async e => { 
-                if (e.data.size > 0 && !isPaused) {
+                // 🚀 PREVENT CRASH: Only upload files larger than 5KB
+                if (e.data.size > 5000 && !isPaused) {
                     pendingUploads++;
                     const currentChunkIndex = chunkCounter++;
                     
-                    // Create blob from JUST the current 15s chunk
                     const chunkBlob = new Blob([e.data], { type: 'audio/webm' });
                     
                     const formData = new FormData();
                     formData.append('audio', chunkBlob, 'chunk.webm');
-                    
-                    // Sending the variables app.py needs to sort the files!
                     formData.append('patient_id', "{{ patient.id }}");
                     formData.append('chunk_index', currentChunkIndex);
                     
@@ -202,14 +205,14 @@
                         });
                         const result = await response.json();
                         
-                        if (result.text) {
+                        if (result.text && result.text.trim() !== "") {
                             const tBox = document.getElementById('transcriptionBox');
                             
-                            // 🚀 APPEND new text, don't replace
+                            // 🚀 SMOOTH SUBTITLE APPENDING (Use space instead of \n\n)
                             if (tBox.value.trim() === "") {
                                 tBox.value = result.text;
                             } else {
-                                tBox.value += "\n\n" + result.text;
+                                tBox.value += " " + result.text;
                             }
                             tBox.scrollTop = tBox.scrollHeight; 
                         }
@@ -218,14 +221,13 @@
                     } finally {
                         pendingUploads--;
                         
-                        // If user clicked Finish, wait until last upload is complete then submit
-                        if (isFinishing && pendingUploads === 0) {
-                            document.getElementById('finishLiveForm').submit();
+                        if (isFinishing && pendingUploads <= 0) {
+                            HTMLFormElement.prototype.submit.call(document.getElementById('finishLiveForm'));
                         }
                     }
-                } else if (isFinishing && pendingUploads === 0) {
-                    // Edge case: recorder paused/empty when stopped
-                    document.getElementById('finishLiveForm').submit();
+                } else if (isFinishing && pendingUploads <= 0) {
+                    // Force submit if the final chunk was empty
+                    HTMLFormElement.prototype.submit.call(document.getElementById('finishLiveForm'));
                 }
             };
             

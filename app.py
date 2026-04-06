@@ -169,30 +169,14 @@ def transcribe_wav(path: str) -> str:
     text = processor.tokenizer.decode(pred_ids[0], skip_special_tokens=True).strip()
     return text
 
-def generate_diarized_transcript(visit_id: str) -> str:
-    safe_vid = _to_safe_visit_id(visit_id)
-    pattern = os.path.join(INSTANCE_FOLDER, f"visit_{safe_vid}_chunk*.wav")
-    chunk_files = glob.glob(pattern)
-    
-    if not chunk_files:
-        return "No audio found for this consultation."
+def generate_diarized_transcript(raw_text: str) -> str:
+    if not raw_text or raw_text.strip() == "":
+        return "No transcription data found."
         
-    chunk_files.sort(key=lambda x: int(re.search(r'chunk(\d+)\.wav', x).group(1)))
-    print("🎙️ Step 1: Transcribing chunks individually to bypass timestamp hallucinations...")
+    print("🧠 Calling OpenAI API for Semantic Diarization...")
     
-    raw_text_pieces = []
-    for chunk_path in chunk_files:
-        try:
-            text = transcribe_wav(chunk_path)
-            if text:
-                raw_text_pieces.append(text)
-        except Exception as e:
-            print(f"❌ Error transcribing {chunk_path}: {e}")
-            
-    raw_text = " ".join(raw_text_pieces).strip()
-    raw_text = raw_text + "\n\n[END OF CONSULTATION]"
-    print(f"\n--- RAW ASR TEXT ---\n{raw_text}\n--------------------\n")
-    print("🧠 Step 2: Calling OpenAI API for Semantic Diarization...")
+    # Apply the Anchor Rule directly to the text passed from the frontend
+    raw_text = raw_text.strip() + "\n\n[END OF CONSULTATION]"
     
     try:
         response = client.chat.completions.create(
@@ -226,17 +210,14 @@ def generate_diarized_transcript(visit_id: str) -> str:
 
 
 # ===== REAL-TIME TRANSCRIPTION ROUTE =====
+# ===== REAL-TIME TRANSCRIPTION ROUTE =====
 @app.route('/api/transcribe', methods=['POST'])
 def api_transcribe():
     if 'audio' not in request.files:
         return jsonify({'error': 'No audio file provided'}), 400
         
     audio_file = request.files['audio']
-    
-    # Grab Patient ID from JS FormData so we can save it for OpenAI later
     patient_id = request.form.get('patient_id', 'unknown')
-    
-    # Grab Chunk Index from JS (or fallback to timestamp so numbers keep increasing)
     fallback_index = str(int(datetime.now().timestamp() * 1000))
     chunk_index = request.form.get('chunk_index', fallback_index)
     
@@ -249,23 +230,24 @@ def api_transcribe():
         temp_webm_path = temp_webm.name
 
     try:
-        # Convert Browser WebM directly to the finalized WAV file
+        # 🚀 PREVENT CRASH: If file is basically empty (under 5KB), ignore it and return 200 OK
+        if os.path.getsize(temp_webm_path) < 5000:
+            return jsonify({'text': ''}), 200
+
         subprocess.run(['ffmpeg', '-y', '-i', temp_webm_path, '-ar', str(TARGET_SR), '-ac', '1', final_wav_path], 
                        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)
         
-        # Real-time feedback for the UI
         text = transcribe_wav(final_wav_path)
-        return jsonify({'text': text})
+        return jsonify({'text': text}), 200
         
+    except subprocess.CalledProcessError:
+        # 🚀 FIX: Ignore FFmpeg crash on the final chopped chunk
+        return jsonify({'text': ''}), 200
     except Exception as e:
         print("Transcription Error:", e)
-        return jsonify({'text': ''}), 500
-        
+        return jsonify({'text': ''}), 200
     finally:
         if os.path.exists(temp_webm_path): os.remove(temp_webm_path)
-        # NOTE: We DO NOT remove final_wav_path here anymore! 
-        # It stays in INSTANCE_FOLDER for generate_diarized_transcript()
-
 
 # ===== DATA COLLECTION HELPER =====
 def save_patient_data_to_folder(patient):
@@ -472,19 +454,20 @@ def cancel_live(patient_id):
     return redirect(url_for('doctor_dashboard'))
 
 # 🚀 CHANGED THIS ROUTE TO TRIGGER OPENAI
+# 🚀 CHANGED THIS ROUTE TO TRIGGER OPENAI FASTER
 @app.route('/doctor/finish_live/<patient_id>', methods=['POST'])
 def finish_live(patient_id):
     patient = Patient.query.get_or_404(patient_id)
     
-    # 1. Trigger the OpenAI Semantic Diarization Process using saved audio chunks!
-    final_diarized_text = generate_diarized_transcript(str(patient.id))
+    # Grab the completed raw text directly from the frontend UI
+    frontend_raw_text = request.form.get('transcription', '')
     
-    # 2. Save it to DB
-    patient.transcription = final_diarized_text
+    # Pass it directly to the Diarization function (skipping ASR re-transcription)
+    patient.transcription = generate_diarized_transcript(frontend_raw_text)
+    
     patient.status = 'Draft'
     db.session.commit()
     
-    # 3. Clean up the audio chunks so the Jetson doesn't run out of storage
     _clear_old_audio(str(patient.id))
     
     return redirect(url_for('consultation_summary', patient_id=patient.id))
