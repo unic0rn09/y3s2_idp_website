@@ -73,7 +73,7 @@
 
         <div class="bg-gray-50 flex flex-col flex-1 min-h-[250px]">
             <div class="px-6 py-4 flex justify-between items-center bg-white border-b border-gray-100 shadow-sm">
-                <h4 class="font-bold text-gray-800 text-sm">Real-time AI Scribe</h4>
+                <h4 class="font-bold text-gray-800 text-sm">Real-time AI Scribe (Raw Output)</h4>
                 <button id="editToggleBtn" onclick="toggleEdit()" class="text-blue-600 hover:text-blue-800 text-sm font-medium transition flex items-center hidden">
                     <i class="fas fa-pen mr-1.5 text-xs"></i> Edit
                 </button>
@@ -87,7 +87,7 @@
     <div class="bg-white rounded-xl shadow-2xl w-full max-w-sm p-6 text-center transform transition-all scale-95 opacity-0 duration-300" id="finishModalContent">
         <div class="w-16 h-16 bg-blue-50 rounded-full flex items-center justify-center mx-auto mb-4 border border-blue-100"><i class="far fa-check-circle text-3xl text-blue-600"></i></div>
         <h3 class="font-bold text-lg text-gray-800 mb-2">End Consultation?</h3>
-        <p class="text-sm text-gray-500 mb-6">This will stop the recording and process the transcription for review.</p>
+        <p class="text-sm text-gray-500 mb-6">This will stop the recording and run the OpenAI Speaker Diarization process.</p>
         
         <form action="/doctor/finish_live/{{ patient.id }}" method="POST" id="finishLiveForm" class="flex space-x-3">
             <input type="hidden" name="transcription" id="hiddenTranscription">
@@ -104,28 +104,49 @@
 <script>
     window.isUnsaved = true;
 
-    // Capture the text from the box before submitting the form
-    document.getElementById('finishLiveForm').addEventListener('submit', function() {
-        document.getElementById('hiddenTranscription').value = document.getElementById('transcriptionBox').value;
-        window.isUnsaved = false;
-    });
-
-    // System Variables
+    // --- System Variables ---
     let isPaused = false;
     let isEditing = false;
+    let isFinishing = false; 
+    let chunkCounter = 1; 
+    let pendingUploads = 0; 
     
-    // Audio Context Variables
+    // --- Audio Variables ---
     let mediaRecorder;
     let audioContext;
     let analyser;
     let dataArray;
     let animationId;
-    let audioChunks = [];
 
-    function confirmFinish() { 
-        if(mediaRecorder && mediaRecorder.state !== "inactive") mediaRecorder.stop();
-        openModal('finishModal'); 
-    }
+    // --- Finalization Logic ---
+    document.getElementById('finishLiveForm').addEventListener('submit', function(e) {
+        e.preventDefault(); // Stop standard form submission
+        isFinishing = true;
+        window.isUnsaved = false;
+
+        document.getElementById('hiddenTranscription').value = document.getElementById('transcriptionBox').value;
+
+        // Change the modal to a loading screen while OpenAI does its job
+        const modalContent = document.getElementById('finishModalContent');
+        modalContent.innerHTML = `
+            <div class="text-center py-4">
+                <i class="fas fa-circle-notch fa-spin text-blue-600 text-4xl mb-4"></i>
+                <h3 class="font-bold text-lg text-gray-800 mb-2">Finalizing Session...</h3>
+                <p class="text-sm text-gray-500 mb-2">Generating structured dialogue using OpenAI.</p>
+                <p class="text-xs text-red-500 font-bold uppercase tracking-wide">Do not close this page</p>
+            </div>
+        `;
+
+        // If recording is active, stop it. This forces the final chunk to upload.
+        if (mediaRecorder && mediaRecorder.state !== "inactive") {
+            mediaRecorder.stop();
+        } else if (pendingUploads === 0) {
+            // If already stopped and no pending uploads, submit immediately
+            e.target.submit();
+        }
+    });
+
+    function confirmFinish() { openModal('finishModal'); }
     
     function openModal(id) {
         document.getElementById(id).classList.remove('hidden');
@@ -141,62 +162,74 @@
         setTimeout(() => { document.getElementById(id).classList.add('hidden'); }, 300);
     }
 
-    // New Helper: Reset to initial state if error occurs
     function resetToInitial() {
         document.getElementById('errorState').classList.add('hidden');
         document.getElementById('initialState').classList.remove('hidden');
     }
 
-    // --- Real Microphone Integration ---
+    // --- Microphone Setup ---
     async function startSession() {
-        // Swap UI to 'Requesting' state immediately
         document.getElementById('initialState').classList.add('hidden');
         document.getElementById('errorState').classList.add('hidden');
         document.getElementById('requestingState').classList.remove('hidden');
 
         try {
-            // Request Real Microphone Access (This triggers the browser popup)
             const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-            
-            // If user clicked ALLOW, hide the requesting UI
             document.getElementById('requestingState').classList.add('hidden');
 
-            // Set up MediaRecorder
-// Set up MediaRecorder to capture in chunks
-mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
-mediaRecorder.start(4000); // Triggers ondataavailable every 4 seconds
+            mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
+            mediaRecorder.start(15000); // Trigger upload every 15 seconds!
 
-mediaRecorder.ondataavailable = async e => { 
-    // 1. Add the new 4-second snippet to our total collection
-    audioChunks.push(e.data); 
-    
-    if (e.data.size > 0 && !isPaused) {
-        // 2. Package ALL chunks gathered so far into one complete, valid WebM file
-        const fullBlob = new Blob(audioChunks, { type: 'audio/webm' });
-        const formData = new FormData();
-        formData.append('audio', fullBlob, 'recording.webm');
-        
-        try {
-            const response = await fetch('/api/transcribe', { 
-                method: 'POST', 
-                body: formData 
-            });
-            const result = await response.json();
+            mediaRecorder.ondataavailable = async e => { 
+                if (e.data.size > 0 && !isPaused) {
+                    pendingUploads++;
+                    const currentChunkIndex = chunkCounter++;
+                    
+                    // Create blob from JUST the current 15s chunk
+                    const chunkBlob = new Blob([e.data], { type: 'audio/webm' });
+                    
+                    const formData = new FormData();
+                    formData.append('audio', chunkBlob, 'chunk.webm');
+                    
+                    // Sending the variables app.py needs to sort the files!
+                    formData.append('patient_id', "{{ patient.id }}");
+                    formData.append('chunk_index', currentChunkIndex);
+                    
+                    try {
+                        const response = await fetch('/api/transcribe', { 
+                            method: 'POST', 
+                            body: formData 
+                        });
+                        const result = await response.json();
+                        
+                        if (result.text) {
+                            const tBox = document.getElementById('transcriptionBox');
+                            
+                            // 🚀 APPEND new text, don't replace
+                            if (tBox.value.trim() === "") {
+                                tBox.value = result.text;
+                            } else {
+                                tBox.value += "\n\n" + result.text;
+                            }
+                            tBox.scrollTop = tBox.scrollHeight; 
+                        }
+                    } catch (err) {
+                        console.error("Transcription chunk failed:", err);
+                    } finally {
+                        pendingUploads--;
+                        
+                        // If user clicked Finish, wait until last upload is complete then submit
+                        if (isFinishing && pendingUploads === 0) {
+                            document.getElementById('finishLiveForm').submit();
+                        }
+                    }
+                } else if (isFinishing && pendingUploads === 0) {
+                    // Edge case: recorder paused/empty when stopped
+                    document.getElementById('finishLiveForm').submit();
+                }
+            };
             
-            if (result.text) {
-                const tBox = document.getElementById('transcriptionBox');
-                // 3. REPLACE the text box content (Do not use +=)
-                // Since we send the whole recording, Whisper returns the whole transcript
-                tBox.value = result.text; 
-                tBox.scrollTop = tBox.scrollHeight; // Auto-scroll to bottom
-            }
-        } catch (err) {
-            console.error("Transcription chunk failed:", err);
-        }
-    }
-};
-            
-            // Set up Web Audio API for Real-time Visualizer
+            // --- Visualizer Initialization ---
             audioContext = new (window.AudioContext || window.webkitAudioContext)();
             analyser = audioContext.createAnalyser();
             const source = audioContext.createMediaStreamSource(stream);
@@ -205,7 +238,6 @@ mediaRecorder.ondataavailable = async e => {
             const bufferLength = analyser.frequencyBinCount;
             dataArray = new Uint8Array(bufferLength);
 
-            // Swap UI to 'Active Recording' state
             document.getElementById('activeState').classList.remove('hidden');
             document.getElementById('activeState').classList.add('flex');
             document.getElementById('recordingIndicator').classList.remove('hidden');
@@ -217,13 +249,7 @@ mediaRecorder.ondataavailable = async e => {
             setRecordingUIStatus(true);
             drawRealWaves(); 
 
-            // Simulate FAKE  transcription incoming text
-            //setTimeout(() => {
-                //if(!isPaused) { tBox.value += "Patient presents with symptoms of fever and headache...\n\n"; }
-            //}, 3000);
-
         } catch (err) {
-            // If user clicked BLOCK or the environment is not secure
             console.error("Mic access error:", err);
             document.getElementById('requestingState').classList.add('hidden');
             document.getElementById('errorState').classList.remove('hidden');
@@ -276,7 +302,6 @@ mediaRecorder.ondataavailable = async e => {
             setRecordingUIStatus(false);
             cancelAnimationFrame(animationId);
             flattenWaves(); 
-
         } else {
             if(mediaRecorder.state === "paused") mediaRecorder.resume();
             btn.classList.replace('bg-green-600', 'bg-orange-500');

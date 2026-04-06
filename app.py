@@ -1,12 +1,14 @@
 import sklearn
 import os
 import json 
+import glob
+import re
 from datetime import datetime
 from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
 
-#LoRa adapter library#
+# LoRa adapter & Audio libraries
 import tempfile
 import numpy as np
 import subprocess
@@ -16,9 +18,20 @@ import librosa
 from transformers import WhisperProcessor, WhisperForConditionalGeneration
 from peft import PeftModel
 
+# OpenAI Library
+from openai import OpenAI
 
 app = Flask(__name__)
 app.secret_key = "super_secret_key"
+
+# ===== DIRECTORIES & OPENAI SETUP =====
+BASE_DIR = os.path.abspath(os.path.dirname(__file__))
+INSTANCE_FOLDER = os.path.join(BASE_DIR, "instance")
+os.makedirs(INSTANCE_FOLDER, exist_ok=True)
+
+#API KEY HERE!!!!!!!!!!!!!################
+# #################IMPORTANT#####################
+client = OpenAI(api_key="YOUR_OPENAI_API_KEY") 
 
 # Configure SQLite Database
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///scribe.db'
@@ -26,7 +39,7 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db = SQLAlchemy(app)
 
-# Database Models
+# ===== DATABASE MODELS =====
 class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
@@ -44,7 +57,7 @@ class Patient(db.Model):
     room = db.Column(db.String(20))
     symptoms = db.Column(db.Text)
     priority = db.Column(db.Boolean, default=False)
-    status = db.Column(db.String(20), default='Waiting') # Waiting, Consulting, Draft, Completed
+    status = db.Column(db.String(20), default='Waiting')
     date_added = db.Column(db.DateTime, default=datetime.utcnow)
     bp = db.Column(db.String(20), default="-")
     hr = db.Column(db.String(20), default="-")
@@ -70,13 +83,27 @@ class Patient(db.Model):
     sh_others = db.Column(db.String(255), default="")
 
 
-#======ASR LoRa adapter Configuration=======#
+# ===== ASR & LORA CONFIGURATION =====
 BASE_MODEL_ID = "mesolitica/malaysian-whisper-medium-v2"
-ADAPTER_DIR = "rojak_medium_lora_adapter"
-USE_LORA = True
+# Lowercase to match your github folder structure exactly
+ADAPTER_DIR = os.path.join(BASE_DIR, "rojak_medium_lora_adapter") 
+USE_LORA = True 
 TARGET_SR = 16000
 
 _ASR = {"processor": None, "model": None}
+
+def _to_safe_visit_id(v):
+    v = str(v)
+    return "".join(ch for ch in v if ch.isalnum() or ch in ("-", "_"))[:64] or "unknown"
+
+def _clear_old_audio(visit_id: str):
+    safe_vid = _to_safe_visit_id(visit_id)
+    pattern = os.path.join(INSTANCE_FOLDER, f"visit_{safe_vid}_chunk*.wav")
+    for f in glob.glob(pattern):
+        try:
+            os.remove(f)
+        except Exception:
+            pass
 
 def _load_audio(path: str, target_sr: int = 16000) -> np.ndarray:
     audio, sr = sf.read(path, dtype="float32", always_2d=False)
@@ -89,8 +116,7 @@ def _load_audio(path: str, target_sr: int = 16000) -> np.ndarray:
 def get_asr():
     if _ASR["model"] is not None:
         return _ASR["processor"], _ASR["model"]
-    
-    print("Loading ASR Model into memory...")
+        
     processor = WhisperProcessor.from_pretrained(BASE_MODEL_ID)
     torch_dtype = torch.float16 if torch.cuda.is_available() else torch.float32
     
@@ -99,25 +125,30 @@ def get_asr():
     except Exception:
         base = WhisperForConditionalGeneration.from_pretrained(BASE_MODEL_ID, torch_dtype=torch_dtype)
         base = base.to("cuda" if torch.cuda.is_available() else "cpu")
-        
-    base.config.forced_decoder_ids = None
-    base.config.suppress_tokens = []
+    
+    # Safely handle config attribute differences between Transformers versions
+    config_obj = getattr(base, "generation_config", base.config)
+    config_obj.forced_decoder_ids = None
+    config_obj.suppress_tokens = []
     base.eval()
     
     model = base
     if USE_LORA and os.path.isdir(ADAPTER_DIR):
         try:
-            model = PeftModel.from_pretrained(base, ADAPTER_DIR)
+            lora_model = PeftModel.from_pretrained(base, ADAPTER_DIR)
+            model = lora_model.merge_and_unload()
             model.eval()
-            print("LoRA Adapter loaded successfully.")
+            print("✅ SUCCESS: Bahasa Rojak LoRA Adapter loaded AND MERGED perfectly!")
         except Exception as e:
-            print(f"Failed to load LoRA: {e}")
+            print(f"❌ ERROR loading LoRA: {e}")
             model = base
-            
+    else:
+        print("⚠️ WARNING: LoRA directory not found or USE_LORA is False. Using base model.")
+        
     _ASR["processor"], _ASR["model"] = processor, model
     return processor, model
 
-def transcribe_wav(path: str, language: str = None) -> str:
+def transcribe_wav(path: str) -> str:
     processor, model = get_asr()
     audio = _load_audio(path, TARGET_SR)
     inputs = processor.feature_extractor(audio, sampling_rate=TARGET_SR, return_tensors="pt").input_features
@@ -125,15 +156,74 @@ def transcribe_wav(path: str, language: str = None) -> str:
     model_dtype = next(model.parameters()).dtype
     inputs = inputs.to(model_device).to(model_dtype)
     
-    gen_kwargs = dict(input_features=inputs, max_new_tokens=256, task="transcribe")
-    if language: 
-        gen_kwargs["language"] = language
-        
+    gen_kwargs = dict(
+        input_features=inputs, 
+        max_new_tokens=256,
+        condition_on_prev_tokens=False,
+        repetition_penalty=1.1
+    )
+    
     with torch.no_grad():
         pred_ids = model.generate(**gen_kwargs)
         
     text = processor.tokenizer.decode(pred_ids[0], skip_special_tokens=True).strip()
     return text
+
+def generate_diarized_transcript(visit_id: str) -> str:
+    safe_vid = _to_safe_visit_id(visit_id)
+    pattern = os.path.join(INSTANCE_FOLDER, f"visit_{safe_vid}_chunk*.wav")
+    chunk_files = glob.glob(pattern)
+    
+    if not chunk_files:
+        return "No audio found for this consultation."
+        
+    chunk_files.sort(key=lambda x: int(re.search(r'chunk(\d+)\.wav', x).group(1)))
+    print("🎙️ Step 1: Transcribing chunks individually to bypass timestamp hallucinations...")
+    
+    raw_text_pieces = []
+    for chunk_path in chunk_files:
+        try:
+            text = transcribe_wav(chunk_path)
+            if text:
+                raw_text_pieces.append(text)
+        except Exception as e:
+            print(f"❌ Error transcribing {chunk_path}: {e}")
+            
+    raw_text = " ".join(raw_text_pieces).strip()
+    raw_text = raw_text + "\n\n[END OF CONSULTATION]"
+    print(f"\n--- RAW ASR TEXT ---\n{raw_text}\n--------------------\n")
+    print("🧠 Step 2: Calling OpenAI API for Semantic Diarization...")
+    
+    try:
+        response = client.chat.completions.create(
+            model="gpt-4o",
+            messages=[
+                {
+                    "role": "system", 
+                    "content": (
+                        "You are a strict medical transcriptionist. Format this raw, messy ASR transcript into a clean 'Doctor:' and 'Patient:' dialogue. "
+                        "CRITICAL RULES:\n"
+                        "1. DIARIZATION: Accurately assign speakers. Pay attention to context.\n"
+                        "2. MEDICAL & PHONETIC CORRECTIONS: The ASR makes severe phonetic mistakes with Malaysian accents. You MUST correct them based on clinical context "
+                        "(e.g., changing 'very cold winds' to 'varicose veins', 'weakness insufficient' to 'venous insufficiency', 'kulali' to 'buku lali').\n"
+                        "3. MANDATORY HTML TAGS: Every single time you correct an ASR misheard word, you ABSOLUTELY MUST wrap the corrected word in exact HTML tags. "
+                        "Example: <span class='text-red-600 font-bold'>varicose veins</span>.\n"
+                        "4. THE ANCHOR RULE: The raw text ends with the phrase [END OF CONSULTATION]. You MUST process every single word of the transcript and you are forbidden from stopping until you output the phrase [END OF CONSULTATION] exactly as it appears."
+                    )
+                },
+                {"role": "user", "content": "Raw Input:\n" + raw_text}
+            ],
+            temperature=0.0,
+            max_tokens=4000
+        )
+        final_transcript = response.choices[0].message.content.strip()
+        final_transcript = final_transcript.replace("[END OF CONSULTATION]", "").strip()
+    except Exception as e:
+        print(f"❌ OpenAI API Error: {e}")
+        return f"OpenAI formatting failed. Raw text:\n\n{raw_text}"
+        
+    return final_transcript
+
 
 # ===== REAL-TIME TRANSCRIPTION ROUTE =====
 @app.route('/api/transcribe', methods=['POST'])
@@ -143,20 +233,28 @@ def api_transcribe():
         
     audio_file = request.files['audio']
     
-    # Temporarily save the incoming WebM audio stream
+    # Grab Patient ID from JS FormData so we can save it for OpenAI later
+    patient_id = request.form.get('patient_id', 'unknown')
+    
+    # Grab Chunk Index from JS (or fallback to timestamp so numbers keep increasing)
+    fallback_index = str(int(datetime.now().timestamp() * 1000))
+    chunk_index = request.form.get('chunk_index', fallback_index)
+    
+    safe_vid = _to_safe_visit_id(patient_id)
+    final_wav_name = f"visit_{safe_vid}_chunk{chunk_index}.wav"
+    final_wav_path = os.path.join(INSTANCE_FOLDER, final_wav_name)
+    
     with tempfile.NamedTemporaryFile(suffix='.webm', delete=False) as temp_webm:
         audio_file.save(temp_webm.name)
         temp_webm_path = temp_webm.name
 
-    temp_wav_path = temp_webm_path + '.wav'
-    
     try:
-        # Convert Browser WebM to WAV so soundfile/librosa can process it
-        subprocess.run(['ffmpeg', '-y', '-i', temp_webm_path, '-ar', str(TARGET_SR), '-ac', '1', temp_wav_path], 
+        # Convert Browser WebM directly to the finalized WAV file
+        subprocess.run(['ffmpeg', '-y', '-i', temp_webm_path, '-ar', str(TARGET_SR), '-ac', '1', final_wav_path], 
                        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)
         
-        # Pass to your Whisper Model
-        text = transcribe_wav(temp_wav_path)
+        # Real-time feedback for the UI
+        text = transcribe_wav(final_wav_path)
         return jsonify({'text': text})
         
     except Exception as e:
@@ -164,21 +262,16 @@ def api_transcribe():
         return jsonify({'text': ''}), 500
         
     finally:
-        # Cleanup storage to prevent memory leaks
         if os.path.exists(temp_webm_path): os.remove(temp_webm_path)
-        if os.path.exists(temp_wav_path): os.remove(temp_wav_path)
-#-----------------------------------------------------------------------------------------#
+        # NOTE: We DO NOT remove final_wav_path here anymore! 
+        # It stays in INSTANCE_FOLDER for generate_diarized_transcript()
 
-# --- DATA COLLECTION HELPER (FIXED & BULLETPROOFED) ---
+
+# ===== DATA COLLECTION HELPER =====
 def save_patient_data_to_folder(patient):
-    """Saves patient information into a structured folder hierarchy"""
     try:
-        if patient.ic == '999999-99-9999':
-            return
-
-        base_dir = os.path.join("instance", "patient_records")
-        
-        # 1. Safely handle the date (prevents crashes if SQLite returns a string instead of a datetime object)
+        if patient.ic == '999999-99-9999': return
+        base_dir = os.path.join(INSTANCE_FOLDER, "patient_records")
         if isinstance(patient.date_added, datetime):
             date_visited = patient.date_added.strftime("%Y-%m-%d")
         elif patient.date_added:
@@ -186,19 +279,13 @@ def save_patient_data_to_folder(patient):
         else:
             date_visited = datetime.now().strftime("%Y-%m-%d")
             
-        # 2. Safely handle the IC number (removes slashes or weird characters that break Windows folders)
         safe_ic = str(patient.ic).replace('/', '-').replace('\\', '-').strip() if patient.ic else "UNKNOWN_IC"
-        
         target_dir = os.path.join(base_dir, safe_ic, date_visited)
         os.makedirs(target_dir, exist_ok=True)
         
-        # 3. Name file based on status
-        if patient.status == 'Waiting':
-            filename = "1_intake_and_vitals.json"
-        elif patient.status == 'Draft':
-            filename = "2_consultation_summary.json"
-        elif patient.status == 'Completed':
-            filename = "3_final_clinical_note.json"
+        if patient.status == 'Waiting': filename = "1_intake_and_vitals.json"
+        elif patient.status == 'Draft': filename = "2_consultation_summary.json"
+        elif patient.status == 'Completed': filename = "3_final_clinical_note.json"
         else:
             timestamp = datetime.now().strftime("%H%M%S")
             filename = f"record_{timestamp}.json"
@@ -206,46 +293,30 @@ def save_patient_data_to_folder(patient):
         file_path = os.path.join(target_dir, filename)
         
         archive_data = {
-            "metadata": {
-                "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"), 
-                "room": patient.room,
-                "status": patient.status
-            },
+            "metadata": {"timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"), "room": patient.room, "status": patient.status},
             "patient": {"name": patient.name, "ic": patient.ic, "age": patient.age},
             "vitals": {"bp": patient.bp, "hr": patient.hr, "temp": patient.temp, "rr": patient.rr},
             "clinical_notes": {
                 "cc": patient.cc, "hpi": patient.hpi, "pmh": patient.pmh, 
                 "meds": patient.meds, "allergies": patient.allergies,
                 "social": {
-                    "occupation": patient.sh_occupation, 
-                    "living": patient.sh_living, 
-                    "smoking": patient.sh_smoking, 
-                    "alcohol": patient.sh_alcohol,
-                    "activity": patient.sh_activity,
-                    "diet": patient.sh_diet,
-                    "sleep": patient.sh_sleep,
-                    "others": patient.sh_others
+                    "occupation": patient.sh_occupation, "living": patient.sh_living, "smoking": patient.sh_smoking, 
+                    "alcohol": patient.sh_alcohol, "activity": patient.sh_activity, "diet": patient.sh_diet,
+                    "sleep": patient.sh_sleep, "others": patient.sh_others
                 }
             },
             "raw_transcription": patient.transcription
         }
-        
-        # 4. Save safely with UTF-8 encoding so special characters don't crash the open() function
         with open(file_path, 'w', encoding='utf-8') as f:
             json.dump(archive_data, f, indent=4)
-            
     except Exception as e:
-        # If absolutely anything goes wrong, catch the error so the web app doesn't crash!
         print(f"Non-critical Error saving JSON file to folder: {e}")
-
-#--------------------------------------------------------#
 
 def get_rooms_data():
     rooms = []
     for i in range(1, 6):
         room_num_str = str(i)
         doc = User.query.filter_by(role='doctor', room=room_num_str).first()
-        
         patients_query = Patient.query.filter(
             Patient.room == room_num_str, 
             Patient.status.in_(['Waiting', 'Draft']),
@@ -265,6 +336,7 @@ def get_rooms_data():
             rooms.append({"id": f"Room {i}", "room_num": room_num_str, "doctor": "-", "doctor_email": "", "status": "Not Available", "patients": [], "active": False})
     return rooms
 
+# ===== CORE ROUTES =====
 @app.route('/')
 def login(): return render_template('login.html')
 
@@ -292,7 +364,7 @@ def logout():
     session.pop('user_id', None)
     return redirect(url_for('login'))
 
-# --- NURSE ROUTES ----------
+# ===== NURSE ROUTES =====
 @app.route('/register_patient', methods=['POST'])
 def register_patient():
     room = request.form.get('room')
@@ -334,7 +406,7 @@ def delete_patient(patient_id):
     db.session.commit()
     return redirect(request.referrer)
 
-# --- DOCTOR ROUTES -------
+# ===== DOCTOR ROUTES =====
 @app.route('/doctor/dashboard')
 def doctor_dashboard():
     if 'user_id' not in session: return redirect(url_for('login'))
@@ -381,6 +453,10 @@ def live_consultation(patient_id):
     patient = Patient.query.get_or_404(patient_id)
     patient.status = 'Consulting'
     db.session.commit()
+    
+    # Wipe old audio before starting a new session just to be safe
+    _clear_old_audio(str(patient.id))
+    
     doctor_user = db.session.get(User, session.get('user_id'))
     return render_template('live_consultation_session.html', patient=patient, doctor=doctor_user)
 
@@ -389,14 +465,28 @@ def cancel_live(patient_id):
     patient = Patient.query.get_or_404(patient_id)
     patient.status = 'Waiting'
     db.session.commit()
+    
+    # Wipe audio if cancelled
+    _clear_old_audio(str(patient.id))
+    
     return redirect(url_for('doctor_dashboard'))
 
+# 🚀 CHANGED THIS ROUTE TO TRIGGER OPENAI
 @app.route('/doctor/finish_live/<patient_id>', methods=['POST'])
 def finish_live(patient_id):
     patient = Patient.query.get_or_404(patient_id)
-    patient.transcription = request.form.get('transcription', '')
+    
+    # 1. Trigger the OpenAI Semantic Diarization Process using saved audio chunks!
+    final_diarized_text = generate_diarized_transcript(str(patient.id))
+    
+    # 2. Save it to DB
+    patient.transcription = final_diarized_text
     patient.status = 'Draft'
     db.session.commit()
+    
+    # 3. Clean up the audio chunks so the Jetson doesn't run out of storage
+    _clear_old_audio(str(patient.id))
+    
     return redirect(url_for('consultation_summary', patient_id=patient.id))
 
 @app.route('/doctor/summary/<patient_id>')
@@ -445,13 +535,8 @@ def generate_report(patient_id):
     patient.sh_sleep = request.form.get('sh_sleep', '')
     patient.sh_others = request.form.get('sh_others', '')
     
-    # 1. Update the patient status to 'Completed' FIRST
     patient.status = 'Completed'
-    
-    # 2. Trigger Folder-based Data Collection
     save_patient_data_to_folder(patient)
-    
-    # 3. Save to database
     db.session.commit()
     
     return redirect(url_for('final_medical_note', patient_id=patient.id))
@@ -473,8 +558,7 @@ def mock_consultation():
     if 'user_id' not in session: return redirect(url_for('login'))
     return render_template('mock_consultation.html', doctor=User.query.get(session['user_id']))
 
-
-#-------help and feedback route------------
+# ===== HELP AND FEEDBACK ROUTE =====
 @app.route('/help_feedback')
 def help_feedback():
     return render_template('help_feedback.html')
