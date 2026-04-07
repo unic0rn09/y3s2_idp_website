@@ -1,3 +1,6 @@
+import sklearn # 🚀 JETSON TLS FIX: Must be imported absolutely first
+import torch   # 🚀 JETSON TLS FIX: Must be imported second
+
 import os
 import json 
 import tempfile
@@ -244,7 +247,10 @@ def api_transcribe():
     chunk_index = request.form.get('chunk_index', '0')
     
     safe_vid = _to_safe_visit_id(patient_id)
+    # The temporary chunk WAV
     final_wav_path = os.path.join(INSTANCE_FOLDER, f"visit_{safe_vid}_chunk{chunk_index}.wav")
+    # 🚀 The Master file needed for Pyannote Diarization
+    full_audio_path = os.path.join(INSTANCE_FOLDER, f"visit_{safe_vid}_full.wav")
     
     with tempfile.NamedTemporaryFile(suffix='.webm', delete=False) as temp_webm:
         audio_file.save(temp_webm.name)
@@ -254,18 +260,34 @@ def api_transcribe():
         if os.path.getsize(temp_webm_path) < 5000:
             return jsonify({'text': ''}), 200
 
+        # Convert chunk to WAV
         subprocess.run(['ffmpeg', '-y', '-i', temp_webm_path, '-ar', str(TARGET_SR), '-ac', '1', final_wav_path], 
                        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)
         
+        # 🚀 BUILD THE FULL AUDIO FILE: Append this chunk to the master file
+        if not os.path.exists(full_audio_path):
+            # First chunk: just rename it to full.wav
+            subprocess.run(['ffmpeg', '-y', '-i', final_wav_path, '-c', 'copy', full_audio_path], check=True)
+        else:
+            # Subsequent chunks: append to existing master
+            temp_combined = os.path.join(INSTANCE_FOLDER, f"visit_{safe_vid}_temp.wav")
+            # We use the 'concat' protocol for speed on the Jetson
+            subprocess.run([
+                'ffmpeg', '-y', '-i', f'concat:{full_audio_path}|{final_wav_path}', 
+                '-c', 'copy', temp_combined
+            ], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)
+            os.replace(temp_combined, full_audio_path)
+
         # Calls the function from ai_engine.py
         text = transcribe_wav(final_wav_path)
         return jsonify({'text': text}), 200
+
     except Exception as e:
         print(f"⚠️ Transcription Error: {e}")
         return jsonify({'text': ''}), 200
     finally:
         if os.path.exists(temp_webm_path): os.remove(temp_webm_path)
-
+        
 # 🚀 THE FAST-TRACK FINALIZATION ROUTE
 @app.route('/doctor/finish_live/<patient_id>', methods=['POST'])
 def finish_live(patient_id):
@@ -329,7 +351,7 @@ def finish_live(patient_id):
 @app.route('/doctor/dashboard')
 def doctor_dashboard():
     if 'user_id' not in session: return redirect(url_for('login'))
-    doctor = User.query.get(session['user_id'])
+    doctor = db.session.get(User, session.get('user_id'))
     
     # --- AUTO RESET MOCK PATIENT ---
     # Secretly wipe the mock patient data clean when the doctor returns to dashboard 

@@ -1,33 +1,37 @@
+import sklearn # 🚀 JETSON TLS FIX: Must be imported absolutely first
+import torch   # 🚀 JETSON TLS FIX: Must be imported second
+
 import os
 # 🚀 JETSON FIX: Prevents crashes from broken aarch64 torchcodec libraries
 os.environ["TRANSFORMERS_NO_TORCHCODEC"] = "1"
 
-import glob
 import json
-import time
-import logging
+import glob
 import torch
 import numpy as np
 import soundfile as sf
 import librosa
-from datetime import datetime
 from transformers import WhisperProcessor, WhisperForConditionalGeneration
+from transformers import pipeline as hf_pipeline
 from peft import PeftModel
 from openai import OpenAI
 from dotenv import load_dotenv
+from pyannote.audio import Pipeline as PyannotePipeline
 
-# Optional: For Step 3 (Who Engine)
-# pip install pyannote.audio
-from pyannote.audio import Pipeline
-
+# Load environment variables
 load_dotenv()
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 # ============================================
 # CONFIGURATIONS
 # ============================================
+BASE_MODEL_ID = "mesolitica/malaysian-whisper-medium-v2"
+ADAPTER_DIR = os.path.join(os.path.abspath(os.path.dirname(__file__)), "rojak_medium_lora_adapter")
+TARGET_SR = 16000
 
-
+# ============================================
+# FILE MANAGEMENT HELPERS
+# ============================================
 # Define where audio files will be temporarily saved
 INSTANCE_FOLDER = os.path.join(os.path.abspath(os.path.dirname(__file__)), "instance")
 os.makedirs(INSTANCE_FOLDER, exist_ok=True)
@@ -37,25 +41,19 @@ def _to_safe_visit_id(patient_id):
     return str(patient_id).replace(" ", "_").replace("/", "_")
 
 def clear_old_audio(patient_id):
-    """Deletes temporary audio chunks after the consultation is done."""
+    """Deletes temporary audio chunks after the consultation is done to save Jetson space."""
     safe_vid = _to_safe_visit_id(patient_id)
-    # Find all temporary .wav files associated with this patient
     pattern = os.path.join(INSTANCE_FOLDER, f"visit_{safe_vid}_*.wav")
     for file_path in glob.glob(pattern):
         try:
             os.remove(file_path)
-            print(f"🧹 Cleaned up: {file_path}")
+            print(f"🧹 Cleaned up Jetson storage: {file_path}")
         except OSError:
             pass
-            
-BASE_MODEL_ID = "mesolitica/malaysian-whisper-medium-v2"
-ADAPTER_DIR = os.path.join(os.path.abspath(os.path.dirname(__file__)), "rojak_medium_lora_adapter")
-TARGET_SR = 16000 #sampling rate of audio 
 
 # ============================================
 # 1. ASR ENGINE (The "What" Engine)
 # ============================================
-
 def get_asr():
     """Optimized for Jetson 16GB VRAM"""
     processor = WhisperProcessor.from_pretrained(BASE_MODEL_ID)
@@ -67,16 +65,18 @@ def get_asr():
     model = WhisperForConditionalGeneration.from_pretrained(
         BASE_MODEL_ID, 
         torch_dtype=torch_dtype,
-        device_map="auto"
-    )
+        low_cpu_mem_usage=True
+    ).to(device) # Explicitly force to CUDA
     
     if os.path.isdir(ADAPTER_DIR):
         model = PeftModel.from_pretrained(model, ADAPTER_DIR)
         model = model.merge_and_unload()
+        # Re-ensure device map after merging
+        model = model.to(device, dtype=torch_dtype)
     
     model.eval()
     return processor, model
-    
+
 def transcribe_wav(audio_path):
     """
     Step 1.5: Ultra-fast transcription for live 5-second UI chunks.
@@ -85,50 +85,59 @@ def transcribe_wav(audio_path):
     processor, model = get_asr()
     audio = _load_audio(audio_path)
     
-    inputs = processor(audio, return_tensors="pt", sampling_rate=TARGET_SR).to("cuda", torch.float16)
+    # 🛠️ FIX: Only cast input_features to cuda/float16, not the whole BatchFeature dictionary
+    inputs = processor(audio, return_tensors="pt", sampling_rate=TARGET_SR)
+    input_features = inputs.input_features.to("cuda", dtype=torch.float16)
     
     with torch.no_grad():
-        generated_ids = model.generate(inputs.input_features, max_new_tokens=448)
+        generated_ids = model.generate(input_features, max_new_tokens=440)
     
-    # Decode strictly to text
     text = processor.batch_decode(generated_ids, skip_special_tokens=True)[0]
+    
+    # 🧹 JETSON VRAM CLEANUP
+    del model
+    torch.cuda.empty_cache()
+    
     return text.strip()
 
 def transcribe_with_timestamps(audio_path):
     """
-    Step 2: Returns the Metadata Log with exact milliseconds.
-    If using a stronger GPU, change 'medium' to 'large-v3'.
+    Step 2: Returns the Metadata Log with exact milliseconds for the final full audio.
+    Uses HF Pipeline to prevent OOM on long audio files.
     """
     processor, model = get_asr()
-    audio = _load_audio(audio_path)
     
-    inputs = processor(audio, return_tensors="pt", sampling_rate=TARGET_SR).to("cuda", torch.float16)
-    
-    with torch.no_grad():
-        # return_timestamps=True is the 'Glue' for Pyannote
-        generated_ids = model.generate(
-            inputs.input_features, 
-            return_timestamps=True, 
-            max_new_tokens=448
-        )
-    
-    # This generates a list of chunks with {'text': '...', 'timestamp': (start, end)}
-    result = processor.tokenizer._decode_asr(
-        generated_ids[0], 
-        return_timestamps=True, 
-        return_language=False
+    # 🛠️ FIX: Use HuggingFace pipeline for safe, automated timestamp chunking 
+    # instead of the deprecated _decode_asr method.
+    asr_pipeline = hf_pipeline(
+        "automatic-speech-recognition",
+        model=model,
+        tokenizer=processor.tokenizer,
+        feature_extractor=processor.feature_extractor,
+        torch_dtype=torch.float16,
+        device=0 if torch.cuda.is_available() else -1,
+        return_timestamps=True,
+        chunk_length_s=30 # 🚀 JETSON CRITICAL: Prevents VRAM OOM on long audio
     )
     
-    # Standardizing the Metadata Log format
+    # Pipeline handles resampling natively, so we just pass the path
+    result = asr_pipeline(audio_path, generate_kwargs={"max_new_tokens": 440})
+    
     metadata_log = []
-    for chunk in result['chunks']:
-        metadata_log.append({
-            "text": chunk['text'].strip(),
-            "start": chunk['timestamp'][0],
-            "end": chunk['timestamp'][1]
-        })
+    if "chunks" in result:
+        for chunk in result['chunks']:
+            start_time = chunk['timestamp'][0]
+            # Fallback if end timestamp is missing at the very end of the file
+            end_time = chunk['timestamp'][1] if chunk['timestamp'][1] is not None else start_time + 1.0 
+            
+            metadata_log.append({
+                "text": chunk['text'].strip(),
+                "start": start_time,
+                "end": end_time
+            })
     
     # 🧹 JETSON VRAM CLEANUP: Clear Whisper to make room for Pyannote
+    del asr_pipeline
     del model
     torch.cuda.empty_cache()
     
@@ -141,17 +150,17 @@ def _load_audio(path: str, target_sr: int = 16000) -> np.ndarray:
     if sr != target_sr:
         audio = librosa.resample(audio, orig_sr=sr, target_sr=target_sr).astype(np.float32)
     return audio
+
 # ============================================
 # 2. DIARIZATION ENGINE (The "Who" Engine)
 # ============================================
-
 def get_speaker_map(audio_path):
     """
     Step 3: Pyannote Full Scan.
     Requires an HF_TOKEN in your .env for Pyannote models.
     """
-    # Load Pyannote (ensure it's on CUDA)
-    pipeline = Pipeline.from_pretrained(
+    # 🛠️ FIX: Renamed import to PyannotePipeline to avoid collision with transformers
+    pipeline = PyannotePipeline.from_pretrained(
         "pyannote/speaker-diarization-3.1",
         use_auth_token=os.getenv("HF_TOKEN")
     ).to(torch.device("cuda"))
@@ -175,7 +184,6 @@ def get_speaker_map(audio_path):
 # ============================================
 # 3. TEMPORAL INTERSECTION (The "Glue")
 # ============================================
-
 def align_text_to_speakers(metadata_log, speaker_map):
     diarized_transcript = []
     
@@ -195,11 +203,9 @@ def align_text_to_speakers(metadata_log, speaker_map):
 # ============================================
 # 4. GPT ENGINES (Deduction, Translation, Structuring)
 # ============================================
-
 def process_clinical_tasks(diarized_text, mode="all"):
     """
-    Flexible GPT handler.
-    'diarized_text' is the raw Speaker_00/Speaker_01 output.
+    Flexible GPT handler to identify roles, translate, and extract JSON structure.
     """
     # 1. Identify Roles (Doctor/Patient)
     role_response = client.chat.completions.create(
@@ -211,7 +217,7 @@ def process_clinical_tasks(diarized_text, mode="all"):
     )
     labeled_text = role_response.choices[0].message.content
 
-    # 2. Translation (If requested by UI)
+    # 2. Translation
     translation = None
     if mode in ["all", "translate"]:
         trans_resp = client.chat.completions.create(
@@ -221,13 +227,13 @@ def process_clinical_tasks(diarized_text, mode="all"):
         )
         translation = trans_resp.choices[0].message.content
 
-    # 3. Structuring (CC, HPI, etc.)
+    # 3. Structuring
     structuring = None
     if mode in ["all", "structure"]:
         struct_resp = client.chat.completions.create(
             model="gpt-4o-mini",
             response_format={"type": "json_object"},
-            messages=[{"role": "system", "content": "Extract into JSON: chief_complaint, history_of_present_illness, social_history."}, 
+            messages=[{"role": "system", "content": "Extract into JSON: chief_complaint, history_of_present_illness, social_history, family_history, past_medical_history, medication_history, allergies."}, 
                       {"role": "user", "content": translation or labeled_text}]
         )
         structuring = json.loads(struct_resp.choices[0].message.content)
@@ -237,7 +243,6 @@ def process_clinical_tasks(diarized_text, mode="all"):
 # ============================================
 # MASTER EXECUTION
 # ============================================
-
 def run_post_consultation_pipeline(full_audio_path):
     print("⏳ Running ASR (The What)...")
     metadata_log = transcribe_with_timestamps(full_audio_path)
@@ -252,7 +257,7 @@ def run_post_consultation_pipeline(full_audio_path):
     labeled, translated, structured = process_clinical_tasks(raw_diarized)
     
     return {
-        "ui_left_box": labeled,        # Labeled Doctor/Patient (Rojak)
-        "ui_translate_box": translated, # Formal English
-        "ui_right_box": structured      # Structured JSON
+        "ui_left_box": labeled,        
+        "ui_translate_box": translated,
+        "ui_right_box": structured      
     }
