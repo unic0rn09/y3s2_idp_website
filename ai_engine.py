@@ -2,331 +2,210 @@ import os
 # 🚀 JETSON FIX: Prevents crashes from broken aarch64 torchcodec libraries
 os.environ["TRANSFORMERS_NO_TORCHCODEC"] = "1"
 
-import sys
 import json
 import time
-import glob
 import logging
-from datetime import datetime
-
-import numpy as np
 import torch
-import soundfile as sf 
+import numpy as np
+import soundfile as sf
 import librosa
+from datetime import datetime
 from transformers import WhisperProcessor, WhisperForConditionalGeneration
 from peft import PeftModel
 from openai import OpenAI
 from dotenv import load_dotenv
 
-# ============================================
-# 1. API KEY & LOGGING SETUP
-# ============================================
+# Optional: For Step 3 (Who Engine)
+# pip install pyannote.audio
+from pyannote.audio import Pipeline
+
 load_dotenv()
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
-logging.basicConfig(
-    filename="scribe_audit.log",
-    level=logging.INFO,
-    format="%(asctime)s | %(levelname)s | %(message)s",
-)
-logger = logging.getLogger("medical_scribe")
-
 # ============================================
-# 2. CONFIGURATIONS
+# CONFIGURATIONS
 # ============================================
-# --- ASR Config ---
-BASE_DIR = os.path.abspath(os.path.dirname(__file__))
-INSTANCE_FOLDER = os.path.join(BASE_DIR, "instance")
-os.makedirs(INSTANCE_FOLDER, exist_ok=True)
-
 BASE_MODEL_ID = "mesolitica/malaysian-whisper-medium-v2"
-ADAPTER_DIR = os.path.join(BASE_DIR, "rojak_medium_lora_adapter") 
-USE_LORA = True 
+ADAPTER_DIR = os.path.join(os.path.abspath(os.path.dirname(__file__)), "rojak_medium_lora_adapter")
 TARGET_SR = 16000
-_ASR = {"processor": None, "model": None}
-
-# --- Pipeline Config ---
-TRANSLATION_MODEL = "gpt-4o-mini"
-EXTRACTION_MODEL = "gpt-4o-mini"
-VERIFICATION_MODEL = "gpt-4o-mini"
-MAX_RETRIES = 3
-BASE_DELAY = 2  
 
 # ============================================
-# 3. AUDIO & ASR ENGINE (For Live Transcription)
+# 1. ASR ENGINE (The "What" Engine)
 # ============================================
-
-def _to_safe_visit_id(v):
-    return "".join(ch for ch in str(v) if ch.isalnum() or ch in ("-", "_"))[:64] or "unknown"
-
-def clear_old_audio(visit_id: str):
-    safe_vid = _to_safe_visit_id(visit_id)
-    pattern = os.path.join(INSTANCE_FOLDER, f"visit_{safe_vid}_chunk*.wav")
-    for f in glob.glob(pattern):
-        try: os.remove(f)
-        except Exception: pass
-
-def _load_audio(path: str, target_sr: int = 16000) -> np.ndarray:
-    audio, sr = sf.read(path, dtype="float32", always_2d=False)
-    if audio.ndim > 1: audio = np.mean(audio, axis=1).astype(np.float32)
-    if sr != target_sr:
-        audio = librosa.resample(audio, orig_sr=sr, target_sr=target_sr).astype(np.float32)
-    return audio
 
 def get_asr():
-    if _ASR["model"] is not None:
-        return _ASR["processor"], _ASR["model"]
-    
+    """Optimized for Jetson 16GB VRAM"""
     processor = WhisperProcessor.from_pretrained(BASE_MODEL_ID)
     device = "cuda" if torch.cuda.is_available() else "cpu"
+    
+    # Use float16 to save 50% VRAM on Jetson
     torch_dtype = torch.float16 if device == "cuda" else torch.float32
     
-    base = WhisperForConditionalGeneration.from_pretrained(
+    model = WhisperForConditionalGeneration.from_pretrained(
         BASE_MODEL_ID, 
-        device_map={"": device}, 
-        torch_dtype=torch_dtype
+        torch_dtype=torch_dtype,
+        device_map="auto"
     )
-    base.tie_weights()
     
-    config_obj = getattr(base, "generation_config", base.config)
-    config_obj.forced_decoder_ids = None
-    config_obj.suppress_tokens = []
-    base.eval()
+    if os.path.isdir(ADAPTER_DIR):
+        model = PeftModel.from_pretrained(model, ADAPTER_DIR)
+        model = model.merge_and_unload()
     
-    model = base
-    if USE_LORA and os.path.isdir(ADAPTER_DIR):
-        try:
-            lora_model = PeftModel.from_pretrained(base, ADAPTER_DIR)
-            model = lora_model.merge_and_unload()
-            model.eval()
-            print("✅ SUCCESS: LoRA Adapter loaded and merged!")
-        except Exception as e:
-            print(f"❌ LoRA Error: {e}")
-    
-    _ASR["processor"], _ASR["model"] = processor, model
+    model.eval()
     return processor, model
 
-def transcribe_wav(path: str) -> str:
+def transcribe_with_timestamps(audio_path):
+    """
+    Step 2: Returns the Metadata Log with exact milliseconds.
+    If using a stronger GPU, change 'medium' to 'large-v3'.
+    """
     processor, model = get_asr()
-    audio = _load_audio(path, TARGET_SR)
-    inputs = processor.feature_extractor(audio, sampling_rate=TARGET_SR, return_tensors="pt").input_features
-    device = next(model.parameters()).device
-    dtype = next(model.parameters()).dtype
+    audio = _load_audio(audio_path)
+    
+    inputs = processor(audio, return_tensors="pt", sampling_rate=TARGET_SR).to("cuda", torch.float16)
     
     with torch.no_grad():
-        pred_ids = model.generate(inputs.to(device).to(dtype), max_new_tokens=448)
+        # return_timestamps=True is the 'Glue' for Pyannote
+        generated_ids = model.generate(
+            inputs.input_features, 
+            return_timestamps=True, 
+            max_new_tokens=448
+        )
+    
+    # This generates a list of chunks with {'text': '...', 'timestamp': (start, end)}
+    result = processor.tokenizer._decode_asr(
+        generated_ids[0], 
+        return_timestamps=True, 
+        return_language=False
+    )
+    
+    # Standardizing the Metadata Log format
+    metadata_log = []
+    for chunk in result['chunks']:
+        metadata_log.append({
+            "text": chunk['text'].strip(),
+            "start": chunk['timestamp'][0],
+            "end": chunk['timestamp'][1]
+        })
+    
+    # 🧹 JETSON VRAM CLEANUP: Clear Whisper to make room for Pyannote
+    del model
+    torch.cuda.empty_cache()
+    
+    return metadata_log
+
+# ============================================
+# 2. DIARIZATION ENGINE (The "Who" Engine)
+# ============================================
+
+def get_speaker_map(audio_path):
+    """
+    Step 3: Pyannote Full Scan.
+    Requires an HF_TOKEN in your .env for Pyannote models.
+    """
+    # Load Pyannote (ensure it's on CUDA)
+    pipeline = Pipeline.from_pretrained(
+        "pyannote/speaker-diarization-3.1",
+        use_auth_token=os.getenv("HF_TOKEN")
+    ).to(torch.device("cuda"))
+
+    diarization = pipeline(audio_path)
+    
+    speaker_map = []
+    for turn, _, speaker in diarization.itertracks(yield_label=True):
+        speaker_map.append({
+            "start": turn.start,
+            "end": turn.end,
+            "speaker": speaker
+        })
+    
+    # 🧹 JETSON VRAM CLEANUP
+    del pipeline
+    torch.cuda.empty_cache()
+    
+    return speaker_map
+
+# ============================================
+# 3. TEMPORAL INTERSECTION (The "Glue")
+# ============================================
+
+def align_text_to_speakers(metadata_log, speaker_map):
+    diarized_transcript = []
+    
+    for text_block in metadata_log:
+        t_mid = (text_block["start"] + text_block["end"]) / 2
         
-    return processor.tokenizer.decode(pred_ids[0], skip_special_tokens=True).strip()
+        assigned_speaker = "Unknown"
+        for spk in speaker_map:
+            if spk["start"] <= t_mid <= spk["end"]:
+                assigned_speaker = spk["speaker"]
+                break
+        
+        diarized_transcript.append(f"{assigned_speaker}: {text_block['text']}")
+    
+    return "\n".join(diarized_transcript)
 
 # ============================================
-# 4. CLINICAL PIPELINE UTILITIES
+# 4. GPT ENGINES (Deduction, Translation, Structuring)
 # ============================================
 
-def validate_input(text):
-    if not text or not text.strip():
-        raise ValueError("Empty transcript provided")
-    stripped = text.strip()
-    word_count = len(stripped.split())
-    if word_count < 10:
-        raise ValueError(f"Transcript too short ({word_count} words) — likely incomplete")
-    if word_count > 10000:
-        raise ValueError(f"Transcript too long ({word_count} words) — consider chunking")
-    return stripped
+def process_clinical_tasks(diarized_text, mode="all"):
+    """
+    Flexible GPT handler.
+    'diarized_text' is the raw Speaker_00/Speaker_01 output.
+    """
+    # 1. Identify Roles (Doctor/Patient)
+    role_response = client.chat.completions.create(
+        model="gpt-4o",
+        messages=[{
+            "role": "system", 
+            "content": "Identify Speaker_00 and Speaker_01 as 'Doctor' or 'Patient' based on context. Return the full text with correct labels."
+        }, {"role": "user", "content": diarized_text}]
+    )
+    labeled_text = role_response.choices[0].message.content
 
-def add_line_numbers(text):
-    lines = text.strip().split("\n")
-    numbered = []
-    counter = 1
-    for line in lines:
-        stripped = line.strip()
-        if stripped:
-            numbered.append(f"[L{counter}] {stripped}")
-            counter += 1
-    return "\n".join(numbered)
-
-def call_with_retry(api_call_fn, description="API call"):
-    for attempt in range(MAX_RETRIES):
-        try:
-            return api_call_fn()
-        except Exception as e:
-            if attempt == MAX_RETRIES - 1:
-                logger.error(f"{description} failed after {MAX_RETRIES} attempts: {e}")
-                raise
-            delay = BASE_DELAY * (2 ** attempt)
-            logger.warning(f"{description} attempt {attempt+1} failed: {e}. Retrying in {delay}s...")
-            time.sleep(delay)
-
-# ============================================
-# 5. PIPELINE STAGE 1: TRANSLATION
-# ============================================
-
-def translate_rojak(numbered_text):
-    def _call():
-        response = client.chat.completions.create(
-            model=TRANSLATION_MODEL,
-            messages=[
-                {
-                    "role": "system",
-                    "content": (
-                        "You are a medical translator specializing in Malaysian multilingual clinical conversations.\n\n"
-                        "Translate the following transcript into formal English.\n"
-                        "Rules:\n"
-                        "1. Translate ALL non-English content to English.\n"
-                        "2. Preserve medical terms exactly as stated.\n"
-                        "3. Preserve ALL line number tags [L1], [L2] exactly as they appear.\n"
-                        "4. Do NOT add information not present in the original.\n"
-                        "5. If unclear, write [UNCLEAR: original text].\n"
-                        "6. Maintain speaker labels (Doctor/Patient).\n"
-                        "7. Do NOT interpret — translate literally."
-                    ),
-                },
-                {"role": "user", "content": numbered_text},
-            ],
-            temperature=0.2,
+    # 2. Translation (If requested by UI)
+    translation = None
+    if mode in ["all", "translate"]:
+        trans_resp = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[{"role": "system", "content": "Translate this medical transcript to formal English."}, 
+                      {"role": "user", "content": labeled_text}]
         )
-        return response.choices[0].message.content
+        translation = trans_resp.choices[0].message.content
 
-    try:
-        return call_with_retry(_call, description="Translation")
-    except Exception as e:
-        logger.error(f"Translation failed: {e}")
-        return None
-
-# ============================================
-# 6. PIPELINE STAGE 2: EXTRACTION
-# ============================================
-
-def extract_clerking(translated_text):
-    def _call():
-        response = client.chat.completions.create(
-            model=EXTRACTION_MODEL,
-            messages=[
-                {
-                    "role": "system",
-                    "content": (
-                        "You are a strict AI Medical Scribe for a Malaysian Emergency Department.\n\n"
-                        "Extract clinical info into a structured clerking format.\n\n"
-                        "RULES:\n"
-                        "1. DOMAIN SAFETY: If NOT about a medical patient, set chief_complaint to \"NON-MEDICAL CONTENT\".\n"
-                        "2. NO HALLUCINATIONS: Only record info explicitly confirmed. Negative findings must be explicit.\n"
-                        "3. THREE STATES: 'Not mentioned', 'No known [disease/allergies]', or list items.\n"
-                        "4. SOURCE ATTRIBUTION: Include [L#] line numbers for every finding.\n\n"
-                        "Output strictly in this JSON format:\n"
-                        "{\n"
-                        "  \"chief_complaint\": \"...\",\n"
-                        "  \"chief_complaint_source\": [\"L#\"],\n"
-                        "  \"history_of_present_illness\": [{\"finding\": \"...\", \"source\": [\"L#\"]}],\n"
-                        "  \"past_medical_history\": [{\"finding\": \"...\", \"source\": [\"L#\"]}],\n"
-                        "  \"medication_history\": [{\"finding\": \"...\", \"source\": [\"L#\"]}],\n"
-                        "  \"allergies\": {\"status\": \"...\", \"source\": [\"L#\"]},\n"
-                        "  \"family_history\": [{\"finding\": \"...\", \"source\": [\"L#\"]}],\n"
-                        "  \"social_history\": [{\"finding\": \"...\", \"source\": [\"L#\"]}]\n"
-                        "}"
-                    ),
-                },
-                {"role": "user", "content": translated_text},
-            ],
-            temperature=0,
+    # 3. Structuring (CC, HPI, etc.)
+    structuring = None
+    if mode in ["all", "structure"]:
+        struct_resp = client.chat.completions.create(
+            model="gpt-4o-mini",
             response_format={"type": "json_object"},
+            messages=[{"role": "system", "content": "Extract into JSON: chief_complaint, history_of_present_illness, social_history."}, 
+                      {"role": "user", "content": translation or labeled_text}]
         )
-        return json.loads(response.choices[0].message.content)
+        structuring = json.loads(struct_resp.choices[0].message.content)
 
-    try:
-        return call_with_retry(_call, description="Extraction")
-    except Exception as e:
-        logger.error(f"Extraction failed: {e}")
-        return None
-
-def render_clerking_readable(clerking_json):
-    # [Your exact rendering function logic is hidden for brevity but completely functional here]
-    # This converts JSON to plain text if needed.
-    pass 
+    return labeled_text, translation, structuring
 
 # ============================================
-# 7. PIPELINE STAGE 3: VERIFICATION
+# MASTER EXECUTION
 # ============================================
 
-def verify_clerking(translated_text, clerking_json):
-    def _call():
-        response = client.chat.completions.create(
-            model=VERIFICATION_MODEL,
-            messages=[
-                {
-                    "role": "system",
-                    "content": (
-                        "You are a medical documentation auditor.\n\n"
-                        "Compare the clerking note against the original transcript. Classify EACH claim as:\n"
-                        "- SUPPORTED, INFERRED, or UNSUPPORTED.\n"
-                        "Check for OMISSIONS.\n"
-                        "Output JSON format with 'findings', 'omissions', 'overall_accuracy', and 'warnings'."
-                    ),
-                },
-                {
-                    "role": "user",
-                    "content": f"TRANSCRIPT:\n{translated_text}\n\nCLERKING NOTE:\n{json.dumps(clerking_json, indent=2)}",
-                },
-            ],
-            temperature=0,
-            response_format={"type": "json_object"},
-        )
-        return json.loads(response.choices[0].message.content)
-
-    try:
-        return call_with_retry(_call, description="Verification")
-    except Exception as e:
-        logger.error(f"Verification failed: {e}")
-        return None
-
-def evaluate_verification(verification):
-    if verification is None: return "UNVERIFIED", "Verification failed"
-    accuracy = verification.get("overall_accuracy", "LOW")
-    findings = verification.get("findings", [])
-    omissions = verification.get("omissions", [])
-    unsupported = [f for f in findings if f.get("classification") == "UNSUPPORTED"]
-    inferred = [f for f in findings if f.get("classification") == "INFERRED"]
-
-    if accuracy == "LOW" or len(unsupported) > 0:
-        return "REJECTED", f"{len(unsupported)} unsupported claims"
-    if accuracy == "MEDIUM" or len(inferred) > 2 or len(omissions) > 0:
-        return "NEEDS_REVIEW", f"{len(inferred)} inferred claims, {len(omissions)} omissions"
-    return "ACCEPTED", "All claims supported"
-
-# ============================================
-# 8. MASTER PIPELINE EXECUTION
-# ============================================
-
-def run_pipeline(rojak_text):
-    session_id = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
-    logger.info(f"[{session_id}] Pipeline started")
-
-    try: rojak_text = validate_input(rojak_text)
-    except ValueError as e: return None
-
-    numbered_text = add_line_numbers(rojak_text)
-
-    # 1. Translate
-    translated = translate_rojak(numbered_text)
-    if translated is None: return None
-
-    unclear_count = translated.count("[UNCLEAR")
-
-    # 2. Extract
-    clerking_data = extract_clerking(translated)
-    if clerking_data is None: return None
-
-    if clerking_data.get("chief_complaint") == "NON-MEDICAL CONTENT":
-        return {"session_id": session_id, "status": "NON_MEDICAL"}
-
-    # 3. Verify
-    verification = verify_clerking(translated, clerking_data)
-    verdict, verdict_reason = evaluate_verification(verification)
-
+def run_post_consultation_pipeline(full_audio_path):
+    print("⏳ Running ASR (The What)...")
+    metadata_log = transcribe_with_timestamps(full_audio_path)
+    
+    print("⏳ Running Pyannote (The Who)...")
+    speaker_map = get_speaker_map(full_audio_path)
+    
+    print("⏳ Gluing Timeline...")
+    raw_diarized = align_text_to_speakers(metadata_log, speaker_map)
+    
+    print("⏳ GPT Clinical Processing...")
+    labeled, translated, structured = process_clinical_tasks(raw_diarized)
+    
     return {
-        "session_id": session_id,
-        "status": verdict,
-        "status_reason": verdict_reason,
-        "unclear_count": unclear_count,
-        "translation": translated,
-        "clerking_json": clerking_data,
-        "verification": verification,
+        "ui_left_box": labeled,        # Labeled Doctor/Patient (Rojak)
+        "ui_translate_box": translated, # Formal English
+        "ui_right_box": structured      # Structured JSON
     }
