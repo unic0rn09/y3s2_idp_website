@@ -8,8 +8,15 @@ from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
 
 # 🚀 IMPORT FROM YOUR NEW AI ENGINE FILE
-from ai_engine import transcribe_wav, run_pipeline, clear_old_audio, _to_safe_visit_id, INSTANCE_FOLDER, TARGET_SR
-
+from ai_engine import (
+    transcribe_wav, 
+    run_pipeline,            # The legacy/original pipeline
+    run_post_consultation_pipeline, # The new "Who" + "What" + GPT flow
+    clear_old_audio, 
+    _to_safe_visit_id, 
+    INSTANCE_FOLDER, 
+    TARGET_SR
+)
 app = Flask(__name__)
 app.secret_key = "super_secret_key"
 
