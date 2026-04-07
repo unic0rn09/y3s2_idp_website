@@ -94,6 +94,13 @@ def transcribe_with_timestamps(audio_path):
     
     return metadata_log
 
+def _load_audio(path: str, target_sr: int = 16000) -> np.ndarray:
+    audio, sr = sf.read(path, dtype="float32", always_2d=False)
+    if audio.ndim > 1: 
+        audio = np.mean(audio, axis=1).astype(np.float32)
+    if sr != target_sr:
+        audio = librosa.resample(audio, orig_sr=sr, target_sr=target_sr).astype(np.float32)
+    return audio
 # ============================================
 # 2. DIARIZATION ENGINE (The "Who" Engine)
 # ============================================

@@ -269,47 +269,61 @@ def api_transcribe():
 # 🚀 THE FAST-TRACK FINALIZATION ROUTE
 @app.route('/doctor/finish_live/<patient_id>', methods=['POST'])
 def finish_live(patient_id):
+    # 1. Retrieve the patient record from the database
     patient = Patient.query.get_or_404(patient_id)
     
-    # 1. Grab the raw text from the screen
-    frontend_raw_text = request.form.get('transcription', '')
-    
-    # 2. 🚀 RUN YOUR NEW PIPELINE
-    pipeline_result = run_pipeline(frontend_raw_text)
-    
-    if pipeline_result and pipeline_result["status"] != "NON_MEDICAL":
-        # Save the English translation as the main transcript
-        patient.transcription = pipeline_result["translation"]
-        
-        # 3. 🚀 AUTO-FILL THE DATABASE FIELDS!
-        clerking_data = pipeline_result["clerking_json"]
-        
-        patient.cc = clerking_data.get("chief_complaint", "")
-        
-        # Convert JSON arrays into readable text for the database
-        patient.hpi = "\n".join([item["finding"] for item in clerking_data.get("history_of_present_illness", []) if isinstance(item, dict)])
-        patient.pmh = "\n".join([item["finding"] for item in clerking_data.get("past_medical_history", []) if isinstance(item, dict)])
-        patient.meds = "\n".join([item["finding"] for item in clerking_data.get("medication_history", []) if isinstance(item, dict)])
-        
-        # Handle Allergies (which is a dictionary in your new JSON)
-        allergies = clerking_data.get("allergies", {})
-        patient.allergies = allergies.get("status", "Not mentioned")
+    # 2. Identify the full audio path (Saved during the session)
+    safe_vid = _to_safe_visit_id(patient_id)
+    full_audio_path = os.path.join(INSTANCE_FOLDER, f"visit_{safe_vid}_full.wav")
 
-        # Handle Family and Social History
-        family_hist = "\n".join([item["finding"] for item in clerking_data.get("family_history", []) if isinstance(item, dict)])
-        social_hist = "\n".join([item["finding"] for item in clerking_data.get("social_history", []) if isinstance(item, dict)])
-        patient.sh_others = f"Family: {family_hist}\nSocial: {social_hist}"
-        
-        # Optional: Save the verification verdict so the UI can warn the doctor!
-        # patient.verification_status = pipeline_result["status"] 
+    try:
+        # 3. Check if the full audio exists to run high-accuracy diarization
+        if os.path.exists(full_audio_path):
+            print(f"🚀 Starting Post-Consultation Pipeline for Patient {patient_id}")
+            # This calls the "Who + What" engine in ai_engine.py
+            results = run_post_consultation_pipeline(full_audio_path)
+            
+            # 4. Map the Labeled Rojak transcript to the left box
+            patient.transcription = results["ui_left_box"]
+            
+            # 5. Extract and Auto-fill medical fields from the structured JSON
+            clerking_data = results["ui_right_box"]
+            
+            patient.cc = clerking_data.get("chief_complaint", "")
+            
+            # Convert JSON lists into readable strings for your DB fields
+            patient.hpi = "\n".join([item["finding"] for item in clerking_data.get("history_of_present_illness", [])])
+            patient.pmh = "\n".join([item["finding"] for item in clerking_data.get("past_medical_history", [])])
+            patient.meds = "\n".join([item["finding"] for item in clerking_data.get("medication_history", [])])
+            
+            # Handle Nested Objects (Allergies/Social History)
+            allergies = clerking_data.get("allergies", {})
+            patient.allergies = allergies.get("status", "Not mentioned")
+            
+            # Combine Family and Social history into your existing text field
+            sh = clerking_data.get("social_history", [])
+            fh = clerking_data.get("family_history", [])
+            patient.sh_others = f"Social: {sh}\nFamily: {fh}"
+            
+        else:
+            # FALLBACK: If audio is missing, use the raw text from the UI
+            print("⚠️ Full audio not found. Falling back to raw frontend text.")
+            frontend_raw_text = request.form.get('transcription', '')
+            patient.transcription = frontend_raw_text
+            patient.cc = "Audio missing - please verify manually."
 
-    else:
-        patient.transcription = "Error or Non-Medical content detected."
+    except Exception as e:
+        print(f"❌ Pipeline Error: {e}")
+        flash("AI Pipeline encountered an error. Please check the logs.", "danger")
 
+    # 6. Update Status to Draft and Clean Up
     patient.status = 'Draft'
     db.session.commit()
+    
+    # Remove the 5-second chunks to free up space on the Jetson
     clear_old_audio(str(patient.id))
     
+    # 7. Final Return: Redirect to the summary page
     return redirect(url_for('consultation_summary', patient_id=patient.id))
 
 @app.route('/doctor/dashboard')
