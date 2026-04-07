@@ -8,10 +8,10 @@ from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
 
 # 🚀 IMPORT FROM YOUR NEW AI ENGINE FILE
+# In app.py (Line 11)
 from ai_engine import (
     transcribe_wav, 
-    run_pipeline,            # The legacy/original pipeline
-    run_post_consultation_pipeline, # The new "Who" + "What" + GPT flow
+    run_post_consultation_pipeline, 
     clear_old_audio, 
     _to_safe_visit_id, 
     INSTANCE_FOLDER, 

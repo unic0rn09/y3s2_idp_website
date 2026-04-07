@@ -2,6 +2,7 @@ import os
 # 🚀 JETSON FIX: Prevents crashes from broken aarch64 torchcodec libraries
 os.environ["TRANSFORMERS_NO_TORCHCODEC"] = "1"
 
+import glob
 import json
 import time
 import logging
@@ -25,9 +26,31 @@ client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 # ============================================
 # CONFIGURATIONS
 # ============================================
+
+
+# Define where audio files will be temporarily saved
+INSTANCE_FOLDER = os.path.join(os.path.abspath(os.path.dirname(__file__)), "instance")
+os.makedirs(INSTANCE_FOLDER, exist_ok=True)
+
+def _to_safe_visit_id(patient_id):
+    """Ensures the patient ID is safe to use as a filename."""
+    return str(patient_id).replace(" ", "_").replace("/", "_")
+
+def clear_old_audio(patient_id):
+    """Deletes temporary audio chunks after the consultation is done."""
+    safe_vid = _to_safe_visit_id(patient_id)
+    # Find all temporary .wav files associated with this patient
+    pattern = os.path.join(INSTANCE_FOLDER, f"visit_{safe_vid}_*.wav")
+    for file_path in glob.glob(pattern):
+        try:
+            os.remove(file_path)
+            print(f"🧹 Cleaned up: {file_path}")
+        except OSError:
+            pass
+            
 BASE_MODEL_ID = "mesolitica/malaysian-whisper-medium-v2"
 ADAPTER_DIR = os.path.join(os.path.abspath(os.path.dirname(__file__)), "rojak_medium_lora_adapter")
-TARGET_SR = 16000
+TARGET_SR = 16000 #sampling rate of audio 
 
 # ============================================
 # 1. ASR ENGINE (The "What" Engine)
@@ -53,6 +76,23 @@ def get_asr():
     
     model.eval()
     return processor, model
+    
+def transcribe_wav(audio_path):
+    """
+    Step 1.5: Ultra-fast transcription for live 5-second UI chunks.
+    Skips Pyannote and Timestamps to ensure real-time speed.
+    """
+    processor, model = get_asr()
+    audio = _load_audio(audio_path)
+    
+    inputs = processor(audio, return_tensors="pt", sampling_rate=TARGET_SR).to("cuda", torch.float16)
+    
+    with torch.no_grad():
+        generated_ids = model.generate(inputs.input_features, max_new_tokens=448)
+    
+    # Decode strictly to text
+    text = processor.batch_decode(generated_ids, skip_special_tokens=True)[0]
+    return text.strip()
 
 def transcribe_with_timestamps(audio_path):
     """
